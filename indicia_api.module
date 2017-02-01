@@ -14,6 +14,7 @@ const API_VERSION = 'v0.1';
 require API_VERSION . '/samples/POST.php';
 require API_VERSION . '/users/POST.php';
 require API_VERSION . '/users/auth/POST.php';
+require API_VERSION . '/reports/GET.php';
 
 
 /**
@@ -66,6 +67,12 @@ function indicia_api_menu() {
     'access callback' => TRUE,
   );
 
+  $items["$api_path/reports"] = array(
+    'title' => 'Reports GET/POST',
+    'page callback' => 'indicia_api_reports_get_post',
+    'access callback' => TRUE,
+  );
+
   // User Interface options.
   // Dashboard.
   $items[CONFIG_PATH] = array(
@@ -115,7 +122,7 @@ function indicia_api_menu() {
  *   TRUE if user has the 'admin moobile auth permission' or they created the
  *   app.
  */
-function user_has_permission($app = NULL) {
+function indicia_api_user_has_permission($app = NULL) {
   global $user;
   return user_access('admin mobile auth') || (!is_null($app) && $app['created_by'] === $user->uid);
 }
@@ -152,8 +159,9 @@ function indicia_api_app_load($id = NULL) {
  * the authorisation is given.
  */
 function indicia_api_authorise_app() {
-  $secret = $_POST['appsecret'];
-  $name = empty($_POST['appname']) ? '' : $_POST['appname'];
+  $request = $_POST + $_GET;
+  $secret = $request['appsecret'];
+  $name = empty($request['appname']) ? '' : $request['appname'];
   if (empty($secret) || empty($name)) {
     return FALSE;
   }
@@ -181,9 +189,10 @@ function indicia_api_authorise_app() {
  *   Drupal user object, or FALSE if not authorised.
  */
 function indicia_api_authorise_user() {
+  $request = $_POST + $_GET;
   // Pull out expected parameters from POST request.
-  $usersecret = isset($_POST['usersecret']) ? $_POST['usersecret'] : '';
-  $email = isset($_POST['email']) ? $_POST['email'] : '';
+  $usersecret = isset($request['usersecret']) ? $request['usersecret'] : '';
+  $email = isset($request['email']) ? $request['email'] : '';
 
   if (empty($email) || empty($usersecret)) {
     return FALSE;

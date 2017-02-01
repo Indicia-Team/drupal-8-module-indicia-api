@@ -36,7 +36,7 @@ function indicia_api_samples_post() {
   $response = data_entry_helper::forward_post_to('sample', $submission, $auth['write_tokens']);
 
   // Return response to client.
-  return_response($response);
+  return_response($response, $submission);
 }
 
 /**
@@ -300,7 +300,8 @@ function error_print($code, $status, $title, $errors = NULL) {
   }
 }
 
-function return_response($response) {
+// todo: remove submission param once the server returns external keys
+function return_response($response, $submission) {
   if (isset($response['error'])) {
     $errors = [];
     foreach ($response['errors'] as $key => $error) {
@@ -317,6 +318,14 @@ function return_response($response) {
     $data = [
       'type' => 'samples',
       'id' => $response['success'],
+      'external_key' => $submission['fields']['external_key']['value'],
+      'subModels' => [
+        [
+          'type' => 'occurrence',
+          'id' => $response['children'][0],
+          'external_key' => $submission['subModels'][0]['model']['fields']['external_key']['value'],
+        ],
+      ],
     ];
     $output = ['data' => $data];
     drupal_json_output($output);
