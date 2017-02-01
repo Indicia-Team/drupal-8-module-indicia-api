@@ -14,7 +14,7 @@ const API_VERSION = 'v0.1';
 require API_VERSION . '/samples/POST.php';
 require API_VERSION . '/users/POST.php';
 require API_VERSION . '/users/auth/POST.php';
-require API_VERSION . '/reports/GET.php';
+require API_VERSION . '/reports/GET_POST.php';
 
 
 /**

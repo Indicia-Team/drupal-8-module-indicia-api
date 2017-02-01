@@ -33,7 +33,7 @@ function indicia_api_samples_post() {
   }
 
   // Send record to indicia.
-  $response = data_entry_helper::forward_post_to('sample', $submission, $auth['write_tokens']);
+  $response = data_entry_helper::forward_post_to('save', $submission, $auth['write_tokens']);
 
   // Return response to client.
   return_response($response, $submission);
@@ -317,12 +317,12 @@ function return_response($response, $submission) {
     drupal_add_http_header('Status', '201 Created');
     $data = [
       'type' => 'samples',
-      'id' => $response['success'],
+      'id' => (int) $response['struct']['id'],
       'external_key' => $submission['fields']['external_key']['value'],
       'subModels' => [
         [
           'type' => 'occurrence',
-          'id' => $response['children'][0],
+          'id' => (int) $response['struct']['children'][0]['id'],
           'external_key' => $submission['subModels'][0]['model']['fields']['external_key']['value'],
         ],
       ],
