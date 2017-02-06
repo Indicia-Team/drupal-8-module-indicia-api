@@ -10,7 +10,7 @@
  *   e.g. 'library/totals/filterable_species_occurrence_image_counts.xml'
  * * email - the logged in user's email, used for authentication
  * * usersecret - the user secret key, used for authentication
- * * appsecret - the shared app secret key, used for authentication.
+ * * key - the secret key, used for authentication.
  * * caching - optional setting to define the caching mode which defaults to
  *   false (no caching).
  *   Set to global for a single global cache entry (which cannot be used for
@@ -44,7 +44,7 @@ function indicia_api_reports_get_post() {
   $caching = !empty($request['caching']) ? $request['caching'] : 'false';
   $cache_timeout = !empty($request['cacheTimeout']) ? $request['cacheTimeout'] : 3600;
 
-  unset($request['appsecret']);
+  unset($request['api_key']);
   unset($request['usersecret']);
   unset($request['email']);
   unset($request['cacheTimeout']);
@@ -89,8 +89,8 @@ function indicia_api_reports_get_post() {
 function validate_reports_get_request() {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
-  if (!indicia_api_authorise_app()) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect shared app secret');
+  if (!indicia_api_authorise_key()) {
+    error_print(401, 'Unauthorized', 'Missing or incorrect API key');
 
     return FALSE;
   }

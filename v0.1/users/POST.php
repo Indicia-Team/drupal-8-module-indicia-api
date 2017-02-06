@@ -44,8 +44,8 @@ function indicia_api_users_post() {
 function validate_user_post_request() {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
-  if (!indicia_api_authorise_app()) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect shared app secret');
+  if (!indicia_api_authorise_key()) {
+    error_print(401, 'Unauthorized', 'Missing or incorrect API key');
 
     return FALSE;
   }
@@ -93,7 +93,7 @@ function create_new_user() {
   $email = $_POST['email'];
   $password = $_POST['password'];
 
-  // Generate the user's shared secret returned to the app.
+  // Generate the user's shared secret.
   $usersecret = indicia_api_generate_random_string(10);
 
   // Generate the user confirmation code returned via email.

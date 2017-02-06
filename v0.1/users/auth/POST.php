@@ -46,10 +46,8 @@ function indicia_api_users_auth_post() {
 function validate_user_auth_request() {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
-  $provided_appsecret = $_POST['appsecret'];
-  $provided_appname = empty($_POST['appname']) ? '' : $_POST['appname'];
-  if (!indicia_api_authorise_app($provided_appname, $provided_appsecret)) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect shared app secret');
+  if (!indicia_api_authorise_key()) {
+    error_print(401, 'Unauthorized', 'Missing or incorrect API key');
 
     return FALSE;
   }
@@ -71,7 +69,7 @@ function validate_user_auth_request() {
   }
 
   // Check for an existing user. If found (and password matches) return the
-  // secret to all user to 'log in' via app.
+  // secret to all user to 'log in'.
   $existing_user = user_load_by_mail($email);
   if (!$existing_user) {
     error_print(401, 'Unauthorized', 'Incorrect password or email');

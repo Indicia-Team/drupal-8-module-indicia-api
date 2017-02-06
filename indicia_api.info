@@ -1,5 +1,5 @@
 name = Indicia API
-description = A module which allows to connect to Indicia's warehouse API and improves drupal user API services.
+description = A module which allows to connect to Indicia's warehouse API and improves drupal API services.
 package = "Indicia"
 core = 7.x
 dependencies[] = iform

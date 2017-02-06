@@ -86,23 +86,23 @@ function indicia_api_menu() {
   $items[CONFIG_PATH . '/add'] = array(
     'title' => 'Indicia API',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('indicia_api_app'),
+    'page arguments' => array('indicia_api_key'),
     'access arguments' => array('user mobile auth'),
     'file' => 'indicia_api.admin.inc',
     'type' => MENU_CALLBACK,
   );
   // Edit.
-  $items[CONFIG_PATH . '/%indicia_api_app'] = array(
-    'title' => 'App settings',
+  $items[CONFIG_PATH . '/%indicia_api_key'] = array(
+    'title' => 'key settings',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('indicia_api_app', 4),
+    'page arguments' => array('indicia_api_key', 4),
     'access arguments' => array('user mobile auth'),
     'file' => 'indicia_api.admin.inc',
     'type' => MENU_CALLBACK,
   );
   // Delete.
-  $items[CONFIG_PATH . '/delete/%indicia_api_app'] = array(
-    'title' => 'Delete App',
+  $items[CONFIG_PATH . '/delete/%indicia_api_key'] = array(
+    'title' => 'Delete key',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('indicia_api_delete', 5),
     'access arguments' => array('user mobile auth'),
@@ -113,26 +113,26 @@ function indicia_api_menu() {
 }
 
 /**
- * Checks if the user is allowed to see a saved app account.
+ * Checks if the user is allowed to see a saved key account.
  *
- * @param array $app
- *   An array containing details of an app account.
+ * @param array $key
+ *   An array containing details of an key account.
  *
  * @return bool
  *   TRUE if user has the 'admin moobile auth permission' or they created the
- *   app.
+ *   key.
  */
-function indicia_api_user_has_permission($app = NULL) {
+function indicia_api_user_has_permission($key = NULL) {
   global $user;
-  return user_access('admin mobile auth') || (!is_null($app) && $app['created_by'] === $user->uid);
+  return user_access('admin mobile auth') || (!is_null($key) && $key['created_by'] === $user->uid);
 }
 
 /**
  * Implements hook_load().
  */
-function indicia_api_app_load($id = NULL) {
+function indicia_api_key_load($id = NULL) {
   if ($id) {
-    // Get specific app account.
+    // Get specific key account.
     $results = db_query("SELECT * FROM {indicia_api}
       WHERE id = :id ORDER BY title", array(':id' => $id));
   }
@@ -141,50 +141,50 @@ function indicia_api_app_load($id = NULL) {
     $results = db_query("SELECT * FROM {indicia_api} ORDER BY title");
   }
 
-  // Transform an array of apps.
-  $apps = array();
-  foreach ($results as $app) {
-    $apps[] = (array) $app;
+  // Transform an array of keys.
+  $keys = array();
+  foreach ($results as $key) {
+    $keys[] = (array) $key;
   }
 
-  return $apps;
+  return $keys;
 }
 
 /**
- * Checks if the mobile application password and name match any in the database.
+ * Checks if the key matches any in the database.
  *
- * This function iterates through the list of app accounts from database table
- * with the matching name. This means it is allowed for one appname to have more
- * than one appsecret, and if any of the secrets match the provided secret than
- * the authorisation is given.
+ * This function iterates through the list of key accounts from database table.
  */
-function indicia_api_authorise_app() {
+function indicia_api_authorise_key() {
   $request = $_POST + $_GET;
-  $secret = $request['appsecret'];
-  $name = empty($request['appname']) ? '' : $request['appname'];
-  if (empty($secret) || empty($name)) {
+  $key = $request['api_key'];
+  if (empty($key)) {
     return FALSE;
   }
 
   $result = db_query(
-    "SELECT * FROM {indicia_api} WHERE name = :name",
-    array(':name' => $name));
-  foreach ($result as $app) {
-    $current_secret = $app->secret;
-    if ($secret === $current_secret) {
-      return TRUE;
-    }
+    "SELECT * FROM {indicia_api} WHERE api_key = :key",
+    array(':key' => $key));
+
+  $result_array = $result->fetchAll();
+
+  if (count($result_array) !== 1) {
+    return FALSE;
   }
 
-  return FALSE;
+  if (!$result_array[0]->enabled) {
+    return FALSE;
+  }
+
+  return TRUE;
 }
 
 
 /**
- * Authorise a request to either submit or read records from an app.
+ * Authorise a request to either submit or read records.
  *
- * Uses the posted usersecret, appsecret and email to check that the app is
- * authorised and that the user is valid and activated.
+ * Uses the posted usersecret and email to check that
+ * the user is valid and activated.
  * @return object
  *   Drupal user object, or FALSE if not authorised.
  */
@@ -332,42 +332,35 @@ function indicia_api_validate_password($pass) {
 
 
 /**
- * Tests to see if the app for which a POST has been received is in debug mode.
- *
- * @return bool
- *   TRUE if the app is in debug mode.
- */
-function indicia_api_debug_mode() {
-  if (empty($_POST['appname'])) {
-    return FALSE;
-  }
-
-  $name = $_POST['appname'];
-
-  $result = db_query("SELECT * FROM {indicia_api} WHERE name = :name",
-    array(':name' => $name));
-
-  foreach ($result as $app) {
-    if ($app->debug == 1) {
-      return TRUE;
-    }
-  }
-
-  return FALSE;
-}
-
-
-
-/**
- * Logs messages if in debug mode.
+ * Logs messages if in log mode.
  *
  * Messages go to the PHP error log and the Drupal error log.
  */
 function indicia_api_log($message, $variables = array(), $severity = WATCHDOG_NOTICE, $link = NULL) {
-  // Obtain debug mode indicator.
-  $debug = indicia_api_debug_mode();
-  if ($debug) {
-    error_log($message);
-    watchdog("iform_mobile_auth", $message, $variables, $severity, $link);
+  // Obtain log mode indicator.
+  $key = $_POST['api_key'];
+  if (empty($key)) {
+    return;
+  }
+
+  $result = db_query("SELECT * FROM {indicia_api} WHERE api_key = :key",
+    array(':key' => $key));
+  $result_array = $result->fetchAll();
+  $log_mode = $result_array[0]->log;
+
+  switch ($log_mode) {
+    case WATCHDOG_DEBUG:
+      error_log($message);
+      watchdog("iform_mobile_auth", $message, $variables, $severity, $link);
+      break;
+
+    case WATCHDOG_ERROR:
+      if ($severity === WATCHDOG_ERROR) {
+        error_log($message);
+        watchdog("iform_mobile_auth", $message, $variables, $severity, $link);
+      }
+      break;
+
+    default:
   }
 }

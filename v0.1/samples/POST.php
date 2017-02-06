@@ -244,8 +244,8 @@ function find_duplicates($submission) {
 function validate_samples_post_request() {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
-  if (!indicia_api_authorise_app()) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect shared app secret');
+  if (!indicia_api_authorise_key()) {
+    error_print(401, 'Unauthorized', 'Missing or incorrect API key');
 
     return FALSE;
   }
@@ -319,14 +319,22 @@ function return_response($response, $submission) {
       'type' => 'samples',
       'id' => (int) $response['struct']['id'],
       'external_key' => $submission['fields']['external_key']['value'],
-      'subModels' => [
-        [
-          'type' => 'occurrence',
-          'id' => (int) $response['struct']['children'][0]['id'],
-          'external_key' => $submission['subModels'][0]['model']['fields']['external_key']['value'],
-        ],
-      ],
+      'subModels' => [],
     ];
+
+    // Occurrences only
+    // todo: subModel samples
+    foreach ($response['struct']['children'] as $subModel) {
+      if ($subModel['model'] === 'occurrence') {
+        array_push($data['subModels'], [
+          'type' => 'occurrence',
+          'id' => (int) $subModel['id'],
+          // todo: extract from response once the warehouse supports it
+          'external_key' => $submission['subModels'][0]['model']['fields']['external_key']['value'],
+        ]);
+      }
+    }
+
     $output = ['data' => $data];
     drupal_json_output($output);
     indicia_api_log(print_r($response, 1));
