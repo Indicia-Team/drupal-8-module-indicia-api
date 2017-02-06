@@ -107,11 +107,6 @@ function indicia_api_install() {
       'name' => 'field_last_name',
       'required' => TRUE,
     ),
-    'field_indicia_api_secret' => (object) array(
-      'type' => 'text',
-      'title' => 'Indicia API secret',
-      'name' => 'field_indicia_api_secret',
-    ),
     'field_confirmation_code' => (object) array(
       'type' => 'text',
       'title' => 'One-time login code for mobile registered user',

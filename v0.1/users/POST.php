@@ -3,7 +3,6 @@
 /**
  * Setup the profile fields.
  */
-const SHARED_SECRET_FIELD = 'field_iform_auth_shared_secret';
 const FIRSTNAME_FIELD = 'field_first_name';
 const SECONDNAME_FIELD = 'field_last_name';
 const CONFIRMATION_FIELD = 'field_confirmation_code';
@@ -93,9 +92,6 @@ function create_new_user() {
   $email = $_POST['email'];
   $password = $_POST['password'];
 
-  // Generate the user's shared secret.
-  $usersecret = indicia_api_generate_random_string(10);
-
   // Generate the user confirmation code returned via email.
   $confirmation_code = indicia_api_generate_random_string(20);
 
@@ -114,7 +110,6 @@ function create_new_user() {
   );
   $user_details[FIRSTNAME_FIELD][LANGUAGE_NONE][0]['value'] = $firstname;
   $user_details[SECONDNAME_FIELD][LANGUAGE_NONE][0]['value'] = $secondname;
-  $user_details[SHARED_SECRET_FIELD][LANGUAGE_NONE][0]['value'] = $usersecret;
   $user_details[CONFIRMATION_FIELD][LANGUAGE_NONE][0]['value'] = $confirmation_code;
   $user_details[INDICIA_ID_FIELD][LANGUAGE_NONE][0]['value'] = $indicia_user_id;
 
@@ -141,7 +136,6 @@ function return_user_details($user_obj) {
     'type' => 'users',
     'id' => $user_obj->getIdentifier(),
     'email' => $user_obj->mail->value(),
-    'usersecret' => $user_obj->{SHARED_SECRET_FIELD}->value(),
     'firstname' => $user_obj->{FIRSTNAME_FIELD}->value(),
     'secondname' => $user_obj->{SECONDNAME_FIELD}->value(),
   ];

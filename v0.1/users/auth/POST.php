@@ -30,9 +30,6 @@ function indicia_api_users_auth_post() {
     error_print(401, 'Unauthorized', 'User not activated.');
     return;
   }
-  // Create a new user-secret if this user doesn't already have one
-  // (they registered directly with the site).
-  check_existing_secret($existing_user_obj);
 
   // Check for existing user that do not have indicia id in their profile field.
   check_indicia_id($existing_user_obj);
@@ -97,15 +94,5 @@ function check_indicia_id($existing_user_obj) {
     else {
       $error = $indicia_user_id;
     }
-  }
-}
-
-function check_existing_secret($existing_user_obj) {
-  $secret = $existing_user_obj->{SHARED_SECRET_FIELD}->value();
-  if (empty($secret)) {
-    indicia_api_log('Creating new shared secret');
-    $usersecret = indicia_api_generate_random_string(10);
-    $existing_user_obj->{SHARED_SECRET_FIELD}->set($usersecret);
-    $existing_user_obj->save();
   }
 }

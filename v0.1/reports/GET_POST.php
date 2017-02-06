@@ -9,7 +9,7 @@
  * * report - the path to the report file to run on the warehouse,
  *   e.g. 'library/totals/filterable_species_occurrence_image_counts.xml'
  * * email - the logged in user's email, used for authentication
- * * usersecret - the user secret key, used for authentication
+ * * password - the user password, used for authentication
  * * key - the secret key, used for authentication.
  * * caching - optional setting to define the caching mode which defaults to
  *   false (no caching).
@@ -45,7 +45,6 @@ function indicia_api_reports_get_post() {
   $cache_timeout = !empty($request['cacheTimeout']) ? $request['cacheTimeout'] : 3600;
 
   unset($request['api_key']);
-  unset($request['usersecret']);
   unset($request['email']);
   unset($request['cacheTimeout']);
 

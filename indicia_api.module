@@ -183,26 +183,22 @@ function indicia_api_authorise_key() {
 /**
  * Authorise a request to either submit or read records.
  *
- * Uses the posted usersecret and email to check that
+ * Uses the posted password and email to check that
  * the user is valid and activated.
  * @return object
  *   Drupal user object, or FALSE if not authorised.
  */
 function indicia_api_authorise_user() {
-  $request = $_POST + $_GET;
-  // Pull out expected parameters from POST request.
-  $usersecret = isset($request['usersecret']) ? $request['usersecret'] : '';
-  $email = isset($request['email']) ? $request['email'] : '';
+  $email = $_SERVER['PHP_AUTH_USER'];
+  $password = $_SERVER['PHP_AUTH_PW'];
 
-  if (empty($email) || empty($usersecret)) {
+  if (empty($email) || empty($password)) {
     return FALSE;
   }
+  require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
 
   $existing_user = user_load_by_mail($email);
-
-  // Check user secret.
-  $user_wrapped = entity_metadata_wrapper('user', $existing_user);
-  if ($usersecret != $user_wrapped->field_iform_auth_shared_secret->value()) {
+  if (!user_check_password($password, $existing_user)) {
     return FALSE;
   }
 
