@@ -36,7 +36,7 @@ function indicia_api_users_post() {
 
   // Return the user's details to client.
   drupal_add_http_header('Status', '201 Created');
-  return_user_details($new_user_obj);
+  return_user_details($new_user_obj, TRUE);
   indicia_api_log('User created');
 }
 
@@ -131,14 +131,37 @@ function send_activation_email($new_user) {
   );
 }
 
-function return_user_details($user_obj) {
-  $data = [
-    'type' => 'users',
-    'id' => $user_obj->getIdentifier(),
-    'email' => $user_obj->mail->value(),
-    'firstname' => $user_obj->{FIRSTNAME_FIELD}->value(),
-    'secondname' => $user_obj->{SECONDNAME_FIELD}->value(),
-  ];
+function return_user_details($user_obj, $authenticated) {
+  $data = [];
+  if (is_array($user_obj)) {
+    foreach ($user_obj as $user) {
+      $ownAuthentication = $_SERVER['PHP_AUTH_USER'] === $user->mail->value();
+      $userData = [
+        'type' => 'users',
+        'id' => $user->getIdentifier(),
+        'firstname' => $user->{FIRSTNAME_FIELD}->value(),
+        'secondname' => $user->{SECONDNAME_FIELD}->value(),
+      ];
+
+      if ($ownAuthentication) {
+        $userData['email'] = $user->mail->value();
+      }
+
+      array_push($data, $userData);
+    }
+  } else {
+    $data = [
+      'type' => 'users',
+      'id' => $user_obj->getIdentifier(),
+      'firstname' => $user_obj->{FIRSTNAME_FIELD}->value(),
+      'secondname' => $user_obj->{SECONDNAME_FIELD}->value(),
+    ];
+
+    if ($authenticated) {
+      $data['email'] = $user_obj->mail->value();
+    }
+  }
+
   $output = ['data' => $data];
   drupal_json_output($output);
 }

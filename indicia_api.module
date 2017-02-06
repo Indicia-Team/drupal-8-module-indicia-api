@@ -11,10 +11,9 @@ const CONFIG_PATH = 'admin/config/iform/api';
 const API_BASE = 'api';
 const API_VERSION = 'v0.1';
 
-require API_VERSION . '/samples/POST.php';
-require API_VERSION . '/users/POST.php';
-require API_VERSION . '/users/auth/POST.php';
-require API_VERSION . '/reports/GET_POST.php';
+require API_VERSION . '/samples/entry.php';
+require API_VERSION . '/users/entry.php';
+require API_VERSION . '/reports/entry.php';
 
 
 /**
@@ -50,26 +49,20 @@ function indicia_api_menu() {
   $api_path = API_BASE . '/' . API_VERSION;
 
   $items["$api_path/samples"] = array(
-    'title' => 'Samples POST',
-    'page callback' => 'indicia_api_samples_post',
+    'title' => 'Samples',
+    'page callback' => 'indicia_api_samples',
     'access callback' => TRUE,
   );
 
   $items["$api_path/users"] = array(
-    'title' => 'Samples POST',
-    'page callback' => 'indicia_api_users_post',
-    'access callback' => TRUE,
-  );
-
-  $items["$api_path/users/auth"] = array(
-    'title' => 'Samples POST',
-    'page callback' => 'indicia_api_users_auth_post',
+    'title' => 'Users',
+    'page callback' => 'indicia_api_users',
     'access callback' => TRUE,
   );
 
   $items["$api_path/reports"] = array(
-    'title' => 'Reports GET/POST',
-    'page callback' => 'indicia_api_reports_get_post',
+    'title' => 'Reports',
+    'page callback' => 'indicia_api_reports',
     'access callback' => TRUE,
   );
 
