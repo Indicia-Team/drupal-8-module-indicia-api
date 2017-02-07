@@ -6,46 +6,48 @@
  *
  * The function either returns an error or the user's details.
  */
-function indicia_api_users_get() {
+function indicia_api_users_get($uid) {
   indicia_api_log('Users GET');
   indicia_api_log(print_r($_GET, 1));
 
-  if (!validate_user_get_request()) {
+  if (!validate_user_get_request($uid)) {
     return;
   }
 
   $users = [];
 
-  $authenticated = !empty($_SERVER['PHP_AUTH_USER']);
-
   $email = $_GET['email'];
-  if ($email) {
+  if ($uid) {
+    // UID.
+    $existing_user = user_load($uid);
+    if ($existing_user) {
+      $existing_user_obj = entity_metadata_wrapper('user', $existing_user);
+      $users = $existing_user_obj;
+
+      check_indicia_id($existing_user_obj);
+    }
+  }
+  elseif ($email) {
+    // Email.
     $existing_user = user_load_by_mail($email);
     if ($existing_user) {
       $existing_user_obj = entity_metadata_wrapper('user', $existing_user);
-
       array_push($users, $existing_user_obj);
 
-      if ($authenticated) {
-        $ownAuthentication = $_SERVER['PHP_AUTH_USER'] === $existing_user_obj->mail->value();
-        if ($ownAuthentication) {
-          // Check for existing user that do not have indicia id in their profile field.
-          check_indicia_id($existing_user_obj);
-        }
-      }
+      check_indicia_id($existing_user_obj);
     }
-  } else {
-    // todo: support returning all users
   }
-
+  else {
+    // Todo: support returning all users.
+  }
 
   // Return the user's info to client.
   drupal_add_http_header('Status', '200 OK');
-  return_user_details($users, $authenticated);
+  return_user_details($users);
   indicia_api_log('User details returned');
 }
 
-function validate_user_get_request() {
+function validate_user_get_request($uid) {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
   if (!indicia_api_authorise_key()) {
@@ -95,9 +97,9 @@ function validate_user_get_request() {
     }
   }
 
-  if (!$_GET['email']) {
-    // todo: remove this once the GET supports returning all users
-    // Check if the user filter is specified
+  // Check if the user filter is specified.
+  if (!$uid && !$_GET['email'] && !$_GET['warehouse_id']) {
+    // Todo: remove this once the GET supports returning all users.
     error_print(404, 'Not found', 'Full user listing is not supported yet. Please specify your user email.');
     return;
   }
@@ -105,7 +107,17 @@ function validate_user_get_request() {
   return TRUE;
 }
 
+/**
+ *  Check for existing user that do not have indicia id in their profile field.
+ *
+ * @param $existing_user_obj
+ */
 function check_indicia_id($existing_user_obj) {
+  if ($_SERVER['PHP_AUTH_USER'] !== $existing_user_obj->mail->value()) {
+    // Allow to update own user record only.
+    return;
+  }
+
   $indicia_user_id = $existing_user_obj->{INDICIA_ID_FIELD}->value();
   if (empty($indicia_user_id) || $indicia_user_id == -1) {
     indicia_api_log('Associating indicia user id');
@@ -118,9 +130,6 @@ function check_indicia_id($existing_user_obj) {
     if (is_int($indicia_user_id)) {
       $existing_user_obj->{INDICIA_ID_FIELD}->set($indicia_user_id);
       $existing_user_obj->save();
-    }
-    else {
-      $error = $indicia_user_id;
     }
   }
 }

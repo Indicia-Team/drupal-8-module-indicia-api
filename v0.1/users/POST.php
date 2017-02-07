@@ -130,38 +130,3 @@ function send_activation_email($new_user) {
     $params
   );
 }
-
-function return_user_details($user_obj, $authenticated) {
-  $data = [];
-  if (is_array($user_obj)) {
-    foreach ($user_obj as $user) {
-      $ownAuthentication = $_SERVER['PHP_AUTH_USER'] === $user->mail->value();
-      $userData = [
-        'type' => 'users',
-        'id' => $user->getIdentifier(),
-        'firstname' => $user->{FIRSTNAME_FIELD}->value(),
-        'secondname' => $user->{SECONDNAME_FIELD}->value(),
-      ];
-
-      if ($ownAuthentication) {
-        $userData['email'] = $user->mail->value();
-      }
-
-      array_push($data, $userData);
-    }
-  } else {
-    $data = [
-      'type' => 'users',
-      'id' => $user_obj->getIdentifier(),
-      'firstname' => $user_obj->{FIRSTNAME_FIELD}->value(),
-      'secondname' => $user_obj->{SECONDNAME_FIELD}->value(),
-    ];
-
-    if ($authenticated) {
-      $data['email'] = $user_obj->mail->value();
-    }
-  }
-
-  $output = ['data' => $data];
-  drupal_json_output($output);
-}

@@ -266,39 +266,6 @@ function validate_samples_post_request() {
   return TRUE;
 }
 
-/**
- * Prints to log and returns a json formatted error back to the client.
- *
- * @param int $code
- *   Status code of the header.
- * @param string $status
- *   Status of the header.
- * @param string $title
- *   Title of the error.
- * @param null $errors
- *   If multiple errors then it can be passed as an array.
- */
-function error_print($code, $status, $title, $errors = NULL) {
-  drupal_add_http_header('Status', $code . ' ' . $status);
-  if (is_null($errors)) {
-    drupal_json_output([
-      'errors' => [
-        [
-          'status' => (string) $code,
-          'title' => $title,
-        ],
-      ],
-    ]);
-    indicia_api_log($title);
-  }
-  else {
-    drupal_json_output([
-      'errors' => $errors,
-    ]);
-    indicia_api_log('Error');
-    indicia_api_log(print_r($errors, 1));
-  }
-}
 
 // todo: remove submission param once the server returns external keys
 function return_response($response, $submission) {

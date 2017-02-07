@@ -11,11 +11,6 @@ const CONFIG_PATH = 'admin/config/iform/api';
 const API_BASE = 'api';
 const API_VERSION = 'v0.1';
 
-require API_VERSION . '/samples/entry.php';
-require API_VERSION . '/users/entry.php';
-require API_VERSION . '/reports/entry.php';
-
-
 /**
  * Implements hook_permission().
  */
@@ -52,18 +47,21 @@ function indicia_api_menu() {
     'title' => 'Samples',
     'page callback' => 'indicia_api_samples',
     'access callback' => TRUE,
+    'file' => API_VERSION.'/samples/entry.inc',
   );
 
   $items["$api_path/users"] = array(
     'title' => 'Users',
     'page callback' => 'indicia_api_users',
     'access callback' => TRUE,
+    'file' => API_VERSION.'/users/entry.inc',
   );
 
   $items["$api_path/reports"] = array(
     'title' => 'Reports',
     'page callback' => 'indicia_api_reports',
     'access callback' => TRUE,
+    'file' => API_VERSION.'/reports/entry.inc',
   );
 
   // User Interface options.
@@ -351,5 +349,39 @@ function indicia_api_log($message, $variables = array(), $severity = WATCHDOG_NO
       break;
 
     default:
+  }
+}
+
+/**
+ * Prints to log and returns a json formatted error back to the client.
+ *
+ * @param int $code
+ *   Status code of the header.
+ * @param string $status
+ *   Status of the header.
+ * @param string $title
+ *   Title of the error.
+ * @param null $errors
+ *   If multiple errors then it can be passed as an array.
+ */
+function error_print($code, $status, $title, $errors = NULL) {
+  drupal_add_http_header('Status', $code . ' ' . $status);
+  if (is_null($errors)) {
+    drupal_json_output([
+      'errors' => [
+        [
+          'status' => (string) $code,
+          'title' => $title,
+        ],
+      ],
+    ]);
+    indicia_api_log($title);
+  }
+  else {
+    drupal_json_output([
+      'errors' => $errors,
+    ]);
+    indicia_api_log('Error');
+    indicia_api_log(print_r($errors, 1));
   }
 }
