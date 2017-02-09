@@ -6,14 +6,15 @@ require 'reset/POST.php';
 
 function indicia_api_users($uid = NULL, $attribute = '') {
   drupal_add_http_header('Access-Control-Allow-Origin', "*");
-  drupal_add_http_header('Access-Control-Allow-Methods', 'GET,POST');
+  drupal_add_http_header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   drupal_add_http_header('Access-Control-Allow-Headers', 'Authorization');
 
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'POST':
       if ($attribute === 'reset') {
         indicia_api_users_reset_post($uid);
-      } else {
+      }
+      else {
         indicia_api_users_post();
       }
       break;
@@ -22,8 +23,11 @@ function indicia_api_users($uid = NULL, $attribute = '') {
       indicia_api_users_get($uid);
       break;
 
+    case 'OPTIONS':
+      break;
+
     default:
-      return;
+      error_print(405, 'Method Not Allowed');
   }
 }
 

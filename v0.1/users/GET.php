@@ -60,66 +60,50 @@ function indicia_api_users_get($uid) {
 }
 
 function validate_user_get_request($uid) {
-  // Reject submissions with an incorrect secret (or instances where secret is
-  // not set).
+  // API key authorise.
   if (!indicia_api_authorise_key()) {
     error_print(401, 'Unauthorized', 'Missing or incorrect API key');
 
     return FALSE;
   }
 
-  // Check if user wants to authenticate
+  // User authorise
   $name =  $_SERVER['PHP_AUTH_USER'];
   $password = $_SERVER['PHP_AUTH_PW'];
+  if (!$password && !$name) {
+    error_print(401, 'Unauthorized', 'Incorrect password or email');
 
-  // Check email.
-  if (!empty($password) && empty($name)) {
-    error_print(400, 'Bad Request', 'Invalid or missing name');
+    return FALSE;
+  }
+  // User exists?
+  if(filter_var($name, FILTER_VALIDATE_EMAIL)) {
+    // Email.
+    $existing_user = user_load_by_mail($name);
+  }
+  else {
+    // Name.
+    $existing_user = user_load_by_name($name);
+  }
+  if (!$existing_user) {
+    error_print(401, 'Unauthorized', 'Incorrect password or email');
 
     return FALSE;
   }
 
-  // Check password.
-  if (!empty($name) && empty($password)) {
-    error_print(400, 'Bad Request', 'Invalid or missing password');
-
-    return FALSE;
+  // User password and activations check
+  require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
+  if (!user_check_password($password, $existing_user)) {
+    error_print(401, 'Unauthorized', 'Incorrect password or email');
+    return;
   }
-
-  // Check for an existing user.
-  if (!empty($name)) {
-    $existing_user = NULL;
-
-    if(filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
-      // Email.
-      $existing_user = user_load_by_mail($name);
-    }
-    else {
-      // Name.
-      $existing_user = user_load_by_name($name);
-    }
-    if (!$existing_user) {
-      error_print(401, 'Unauthorized', 'Incorrect password or email');
-
-      return FALSE;
-    }
-
-
-    require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
-
-    if (!user_check_password($password, $existing_user)) {
-      error_print(401, 'Unauthorized', 'Incorrect password or email');
-      return;
-    }
-    elseif ($existing_user->status != 1) {
-      // Check for activation.
-      error_print(401, 'Unauthorized', 'User not activated.');
-      return;
-    }
+  elseif ($existing_user->status != 1) {
+    // Check for activation.
+    error_print(401, 'Unauthorized', 'User not activated.');
+    return;
   }
 
   // Check if the user filter is specified.
-  if (empty($uid) && empty($_GET['name']) && empty($_GET['email']) && empty($_GET['warehouse_id'])) {
+  if (!$uid && !$_GET['name'] && !$_GET['email'] && !$_GET['warehouse_id']) {
     // Todo: remove this once the GET supports returning all users.
     error_print(404, 'Not found', 'Full user listing is not supported yet. Please specify your user email.');
     return;
@@ -140,7 +124,7 @@ function check_indicia_id($existing_user_obj) {
   }
 
   $indicia_user_id = $existing_user_obj->{INDICIA_ID_FIELD}->value();
-  if (empty($indicia_user_id) || $indicia_user_id == -1) {
+  if (!$indicia_user_id || $indicia_user_id == -1) {
     indicia_api_log('Associating indicia user id');
     // Look up indicia id.
     $indicia_user_id = indicia_api_get_user_id($existing_user_obj->mail->value(),
