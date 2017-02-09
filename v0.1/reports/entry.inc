@@ -3,5 +3,17 @@
 require 'GET_POST.php';
 
 function indicia_api_reports() {
-  indicia_api_reports_get_post();
+  drupal_add_http_header('Access-Control-Allow-Origin', "*");
+  drupal_add_http_header('Access-Control-Allow-Methods', 'GET');
+  drupal_add_http_header('Access-Control-Allow-Headers', 'Authorization');
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'POST':
+    case 'GET':
+      indicia_api_reports_get_post();
+      break;
+
+    default:
+      return;
+  }
 }

@@ -14,15 +14,27 @@ function indicia_api_users_get($uid) {
     return;
   }
 
-  $users = [];
+  // Return data.
+  $data = [];
 
   $email = $_GET['email'];
+  $name = $_GET['name'];
   if ($uid) {
     // UID.
     $existing_user = user_load($uid);
     if ($existing_user) {
       $existing_user_obj = entity_metadata_wrapper('user', $existing_user);
-      $users = $existing_user_obj;
+      $data = $existing_user_obj;
+
+      check_indicia_id($existing_user_obj);
+    }
+  }
+  elseif ($name) {
+    // Username.
+    $existing_user = user_load_by_name($name);
+    if ($existing_user) {
+      $existing_user_obj = entity_metadata_wrapper('user', $existing_user);
+      array_push($data, $existing_user_obj);
 
       check_indicia_id($existing_user_obj);
     }
@@ -32,7 +44,7 @@ function indicia_api_users_get($uid) {
     $existing_user = user_load_by_mail($email);
     if ($existing_user) {
       $existing_user_obj = entity_metadata_wrapper('user', $existing_user);
-      array_push($users, $existing_user_obj);
+      array_push($data, $existing_user_obj);
 
       check_indicia_id($existing_user_obj);
     }
@@ -43,7 +55,7 @@ function indicia_api_users_get($uid) {
 
   // Return the user's info to client.
   drupal_add_http_header('Status', '200 OK');
-  return_user_details($users);
+  return_user_details($data);
   indicia_api_log('User details returned');
 }
 
@@ -56,27 +68,36 @@ function validate_user_get_request($uid) {
     return FALSE;
   }
 
-  // check if user wants to authenticate
-  $email = $_SERVER['PHP_AUTH_USER'];
+  // Check if user wants to authenticate
+  $name =  $_SERVER['PHP_AUTH_USER'];
   $password = $_SERVER['PHP_AUTH_PW'];
 
   // Check email.
-  if (!empty($password) && empty($email)) {
-    error_print(400, 'Bad Request', 'Invalid or missing email');
+  if (!empty($password) && empty($name)) {
+    error_print(400, 'Bad Request', 'Invalid or missing name');
 
     return FALSE;
   }
 
-  // check password.
-  if (!empty($email) && empty($password)) {
+  // Check password.
+  if (!empty($name) && empty($password)) {
     error_print(400, 'Bad Request', 'Invalid or missing password');
 
     return FALSE;
   }
 
   // Check for an existing user.
-  if ($email) {
-    $existing_user = user_load_by_mail($email);
+  if (!empty($name)) {
+    $existing_user = NULL;
+
+    if(filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
+      // Email.
+      $existing_user = user_load_by_mail($name);
+    }
+    else {
+      // Name.
+      $existing_user = user_load_by_name($name);
+    }
     if (!$existing_user) {
       error_print(401, 'Unauthorized', 'Incorrect password or email');
 
@@ -98,7 +119,7 @@ function validate_user_get_request($uid) {
   }
 
   // Check if the user filter is specified.
-  if (!$uid && !$_GET['email'] && !$_GET['warehouse_id']) {
+  if (empty($uid) && empty($_GET['name']) && empty($_GET['email']) && empty($_GET['warehouse_id'])) {
     // Todo: remove this once the GET supports returning all users.
     error_print(404, 'Not found', 'Full user listing is not supported yet. Please specify your user email.');
     return;
@@ -113,8 +134,8 @@ function validate_user_get_request($uid) {
  * @param $existing_user_obj
  */
 function check_indicia_id($existing_user_obj) {
-  if ($_SERVER['PHP_AUTH_USER'] !== $existing_user_obj->mail->value()) {
-    // Allow to update own user record only.
+  // Allow to update own user record only.
+  if (!ownAuthenticated($existing_user_obj)) {
     return;
   }
 

@@ -95,7 +95,7 @@ function validate_reports_get_request() {
   }
 
   if (!indicia_api_authorise_user()) {
-    error_print(400, 'Bad Request', 'Could not find/authenticate user');
+    error_print(401, 'Unauthorized', 'Could not find/authenticate user');
 
     return FALSE;
   }

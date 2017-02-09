@@ -61,7 +61,7 @@ function validate_user_post_request() {
   // Check email is valid.
   $email = $_POST['email'];
   if (empty($email) || valid_email_address($email) != 1) {
-    error_print(400, 'Bad Request', 'Invalid or missing email');
+    error_print(400, 'Bad Request', 'Invalid or missing name');
 
     return FALSE;
   }

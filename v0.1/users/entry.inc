@@ -2,55 +2,85 @@
 
 require 'GET.php';
 require 'POST.php';
+require 'reset/POST.php';
 
-function indicia_api_users($uid) {
-  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    indicia_api_users_post();
-  } else {
-    indicia_api_users_get($uid);
+function indicia_api_users($uid = NULL, $attribute = '') {
+  drupal_add_http_header('Access-Control-Allow-Origin', "*");
+  drupal_add_http_header('Access-Control-Allow-Methods', 'GET,POST');
+  drupal_add_http_header('Access-Control-Allow-Headers', 'Authorization');
+
+  switch ($_SERVER['REQUEST_METHOD']) {
+    case 'POST':
+      if ($attribute === 'reset') {
+        indicia_api_users_reset_post($uid);
+      } else {
+        indicia_api_users_post();
+      }
+      break;
+
+    case 'GET':
+      indicia_api_users_get($uid);
+      break;
+
+    default:
+      return;
   }
 }
 
-
-function return_user_details($user_obj, $ownAuthentication) {
+function return_user_details($user_obj, $fullDetails = FALSE) {
   $data = [];
+
   if (is_array($user_obj)) {
-    // multiple.
+    // Multiple.
     foreach ($user_obj as $user) {
       $userData = [
         'type' => 'users',
         'id' => (int) $user->getIdentifier(),
-        'warehouse_id' => (int) $user->{INDICIA_ID_FIELD}->value(),
         'firstname' => $user->{FIRSTNAME_FIELD}->value(),
         'secondname' => $user->{SECONDNAME_FIELD}->value(),
       ];
 
-      $ownAuthentication = $_SERVER['PHP_AUTH_USER'] === $user->mail->value();
-      if ($ownAuthentication) {
+      if (ownAuthenticated($user) || $fullDetails) {
+        $userData['name'] = $user->name->value();
         $userData['email'] = $user->mail->value();
+        $userData['warehouse_id'] = (int) $user->{INDICIA_ID_FIELD}->value();
       }
 
       array_push($data, $userData);
     }
-  } else {
-    // single.
-    if (!$ownAuthentication) {
-      $ownAuthentication = $_SERVER['PHP_AUTH_USER'] === $user_obj->mail->value();
-    }
-
+  }
+  else {
+    // Single.
     $data = [
       'type' => 'users',
       'id' => (int) $user_obj->getIdentifier(),
-      'warehouse_id' => (int) $user_obj->{INDICIA_ID_FIELD}->value(),
       'firstname' => $user_obj->{FIRSTNAME_FIELD}->value(),
       'secondname' => $user_obj->{SECONDNAME_FIELD}->value(),
     ];
 
-    if ($ownAuthentication) {
+    if (ownAuthenticated($user_obj) || $fullDetails) {
+      $data['name'] = $user_obj->name->value();
       $data['email'] = $user_obj->mail->value();
+      $data['warehouse_id'] = (int) $user_obj->{INDICIA_ID_FIELD}->value();
     }
   }
 
   $output = ['data' => $data];
   drupal_json_output($output);
+}
+
+
+function ownAuthenticated($user) {
+  // Allow to update own user record only.
+  if(filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL) &&
+    $_SERVER['PHP_AUTH_USER'] === $user->mail->value()) {
+    // Email.
+    return TRUE;
+  }
+  elseif ($_SERVER['PHP_AUTH_USER'] === $user->name->value()) {
+    // Name.
+    return TRUE;
+  }
+
+  return FALSE;
 }
