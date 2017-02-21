@@ -6,8 +6,9 @@
 function indicia_api_samples_post() {
   indicia_api_log('Samples POST');
   indicia_api_log(print_r($_POST, 1));
+  $submission = json_decode($_POST['submission'], true);
 
-  if (!validate_samples_post_request()) {
+  if (!validate_samples_post_request($submission)) {
     return;
   }
 
@@ -25,7 +26,7 @@ function indicia_api_samples_post() {
   process_files();
 
   // Construct post parameter array.
-  $submission = process_parameters($auth, $connection);
+  $submission = process_parameters($submission, $connection);
 
   // Check for duplicates.
   if (has_duplicates($submission)) {
@@ -90,87 +91,77 @@ function process_files() {
  * @return array
  *   Returns the new record model.
  */
-function process_parameters($auth, $connection) {
-  $params = array();
+function process_parameters($submission, $connection) {
+  $model = [
+    "id" => "sample",
+    "fields" => [],
+    "subModels" => [],
+  ];
 
-  // General info.
-  $safe_survey_id = intval($_POST['survey_id']);
-  $params['survey_id'] = $safe_survey_id;
-  $params['website_id'] = $connection['website_id'];
-  $params['auth_token'] = $auth['write_tokens']['auth_token'];
-  $params['nonce'] = $auth['write_tokens']['nonce'];
-
-  // Obtain coordinates of location if a name is specified.
-  $georeftype = indicia_api_escape($_POST['sample:entered_sref_system']);
-
-  $ref = trim(indicia_api_escape($_POST['sample:entered_sref']));
-
-  unset($_POST['sample:entered_sref_system']);
-  unset($_POST['sample:entered_sref']);
-
-  // Enter sample info.
-  $params['sample:entered_sref'] = $ref;
-  $params['sample:entered_sref_system'] = $georeftype;
-  $params['sample:geom'] = '';
-  $params['gridmode'] = 'TRUE';
-
-  // Enter occurrence info.
-  $params['occurrence:present'] = 'on';
-  $params['occurrence:record_status'] = 'C';
-
-  $is_occurrence_list = FALSE;
-  // Add all supplied data.
-  foreach ($_POST as $key => $value) {
-    if (strstr($key, 'smpAttr:') != FALSE) {
-      $params[$key] = indicia_api_escape($value);
+  foreach ($submission['fields'] as $key => $field) {
+    $field_key = $key;
+    if (($int_key = intval($key)) > 0) {
+      $field_key = 'smp:' . $int_key;
     }
-    elseif (strstr($key, 'occAttr:') != FALSE) {
-      $params[$key] = indicia_api_escape($value);
-    }
-    elseif (strstr($key, 'sample:') != FALSE) {
-      $params[$key] = indicia_api_escape($value);
-    }
-    elseif (strstr($key, 'occurrence:') != FALSE) {
-      $params[$key] = indicia_api_escape($value);
-    }
-    elseif (strstr($key, 'sc:') != FALSE) {
-      // sc: params indicate a list submission.
-      $is_occurrence_list = TRUE;
-      $params[$key] = indicia_api_escape($value);
-    }
+    $model['fields'][$field_key] = [
+      'value' => $field,
+    ];
   }
 
-  // We allow a sample with list of occurrences, sample with single occurrence
-  // or just a sample to be submitted.
-  if ($is_occurrence_list) {
-    $attrArgs = array(
-      'valuetable' => 'occurrence_attribute_value',
-      'attrtable' => 'occurrence_attribute',
-      'key' => 'occurrence_id',
-      'fieldprefix' => 'occAttr',
-      'extraParams' => $auth['read'],
-      'survey_id' => $safe_survey_id,
-    );
-    $occAttrs = data_entry_helper::getAttributes($attrArgs, FALSE);
-    $abundanceAttrs = array();
-    foreach ($occAttrs as $attr) {
-      if ($attr['system_function'] === 'sex_stage_count') {
-        $abundanceAttrs[] = $attr['attributeId'];
-      }
+  $model['fields']['website_id'] = ['value' => $connection['website_id']];
+  $model['fields']['survey_id'] = ['value' => $submission['survey_id']];
+
+  if ($submission['external_key']) {
+    $model['fields']['external_key'] = ['value' => $submission['external_key']];
+  }
+
+  if ($submission['input_form']) {
+    $model['fields']['input_form'] = ['value' => $submission['input_form']];
+  }
+
+  foreach ($submission['samples'] as $sample) {
+    array_push($model['subModels'], [
+      'fkId' => 'sample_id',
+      'model' => process_parameters($sample),
+    ]);
+  }
+
+  foreach ($submission['occurrences'] as $occurrence) {
+    array_push($model['subModels'], [
+      'fkId' => 'sample_id',
+      'model' => process_occurrence_parameters($occurrence, $connection),
+    ]);
+  }
+
+  return $model;
+}
+
+function process_occurrence_parameters($submission, $connection) {
+  $model = [
+    "id" => "occurrence",
+    "fields" => [],
+  ];
+
+  foreach ($submission['fields'] as $key => $field) {
+    $field_key = $key;
+    if (($int_key = intval($key)) > 0) {
+      $field_key = 'smp:' . $int_key;
     }
-    $submission = data_entry_helper::build_sample_occurrences_list_submission($params, FALSE, $abundanceAttrs);
-  }
-  elseif (!empty($params['occurrence:taxa_taxon_list_id'])) {
-    $submission = data_entry_helper::build_sample_occurrence_submission($params);
-  }
-  else {
-    $submission = data_entry_helper::build_submission($params, array('model' => 'sample'));
+    $model['fields'][$field_key] = [
+      'value' => $field,
+    ];
   }
 
-  indicia_api_log('SENDING');
-  indicia_api_log(print_r($params, 1));
+  $model['fields']['website_id'] = ['value' => $connection['website_id']];
+  $model['fields']['zero_abundance'] = ['training' => $submission['training']];
+  $model['fields']['zero_abundance'] = ['value' => 'f'];
+  $model['fields']['record_status'] = ['value' => 'C'];
 
-  return $submission;
+  if ($submission['external_key']) {
+    $model['fields']['external_key'] = ['value' => $submission['external_key']];
+  }
+
+  return $model;
 }
 
 /**
@@ -241,7 +232,7 @@ function find_duplicates($submission) {
  * @return bool
  *   True if the request is valid
  */
-function validate_samples_post_request() {
+function validate_samples_post_request($submission) {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
   if (!indicia_api_authorise_key()) {
@@ -256,9 +247,26 @@ function validate_samples_post_request() {
     return FALSE;
   }
 
-  $safe_survey_id = intval($_POST['survey_id']);
-  if ($safe_survey_id == 0) {
+  $survey_id = intval($_POST['survey_id']);
+  if ($survey_id == 0) {
     error_print(400, 'Bad Request', 'Missing or incorrect survey_id');
+
+    return FALSE;
+  }
+
+  // Validate core fields.
+  if (!$submission['fields']['date']) {
+    error_print(400, 'Bad Request', 'Missing date.');
+
+    return FALSE;
+  }
+  if (!$submission['fields']['entered_sref']) {
+    error_print(400, 'Bad Request', 'Missing entered_sref.');
+
+    return FALSE;
+  }
+  if (!$submission['fields']['entered_sref_system']) {
+    error_print(400, 'Bad Request', 'Missing entered_sref_system.');
 
     return FALSE;
   }
