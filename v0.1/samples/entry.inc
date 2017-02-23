@@ -1,6 +1,6 @@
 <?php
 
-require 'POST.php';
+require 'create.php';
 
 function indicia_api_samples() {
   drupal_add_http_header('Access-Control-Allow-Origin', "*");
@@ -9,7 +9,7 @@ function indicia_api_samples() {
 
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'POST':
-      indicia_api_samples_post();
+      samples_create();
       break;
 
     case 'OPTIONS':

@@ -3,12 +3,12 @@
 /**
  * Samples POST request handler.
  */
-function indicia_api_samples_post() {
+function samples_create() {
   indicia_api_log('Samples POST');
   indicia_api_log(print_r($_POST, 1));
   $submission = json_decode($_POST['submission'], TRUE);
 
-  if (!validate_samples_post_request($submission)) {
+  if (!validate_samples_create_request($submission)) {
     return;
   }
 
@@ -265,7 +265,7 @@ function find_duplicates($submission) {
  * @return bool
  *   True if the request is valid
  */
-function validate_samples_post_request($submission) {
+function validate_samples_create_request($submission) {
   // Reject submissions with an incorrect secret (or instances where secret is
   // Not set).
   if (!indicia_api_authorise_key()) {

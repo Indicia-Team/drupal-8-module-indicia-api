@@ -14,11 +14,11 @@ const INDICIA_ID_FIELD = 'field_indicia_user_id';
  *
  * The function either returns an error or the user's details.
  */
-function indicia_api_users_post() {
+function users_create() {
   indicia_api_log('Users POST');
   indicia_api_log(print_r($_POST, 1));
 
-  if (!validate_user_post_request()) {
+  if (!validate_users_create_request()) {
     return;
   }
 
@@ -40,7 +40,7 @@ function indicia_api_users_post() {
   indicia_api_log('User created');
 }
 
-function validate_user_post_request() {
+function validate_users_create_request() {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
   if (!indicia_api_authorise_key()) {

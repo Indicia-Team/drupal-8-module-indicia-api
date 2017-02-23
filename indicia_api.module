@@ -3,13 +3,19 @@
 /**
  * @file
  * Iform Mobile Authentication Module's Core functionality.
+ *
+ * API design guidelines:
+ * https://cloud.google.com/apis/design/
+ *
+ * JSON API
+ * http://jsonapi.org/format/
  */
 
 // Module configuration's URL path.
 const CONFIG_PATH = 'admin/config/iform/api';
 
 const API_BASE = 'api';
-const API_VERSION = 'v0.1';
+const API_VERSION = 'v1beta1';
 
 /**
  * Implements hook_permission().
@@ -50,6 +56,8 @@ function indicia_api_menu() {
     'file' => API_VERSION.'/samples/entry.inc',
   );
 
+  // TODO: support single sample resource
+
   $items["$api_path/users"] = array(
     'title' => 'Users',
     'page callback' => 'indicia_api_users',
@@ -57,12 +65,23 @@ function indicia_api_menu() {
     'file' => API_VERSION.'/users/entry.inc',
   );
 
-  $items["$api_path/reports"] = array(
-    'title' => 'Reports',
-    'page callback' => 'indicia_api_reports',
+   $items["$api_path/users/%"] = array(
+    'title' => 'Users',
+    'page callback' => 'indicia_api_user',
     'access callback' => TRUE,
-    'file' => API_VERSION.'/reports/entry.inc',
-  );
+    'page arguments' => array(1),
+    'file' => API_VERSION.'/users/user/entry.inc',
+   );
+
+   // TODO: support all reports resource
+
+   $items["$api_path/reports/%"] = array(
+    'title' => 'Reports',
+    'page callback' => 'indicia_api_report',
+    'access callback' => TRUE,
+    'page arguments' => array(1),
+    'file' => API_VERSION.'/reports/report/entry.inc',
+   );
 
   // User Interface options.
   // Dashboard.
@@ -172,7 +191,7 @@ function indicia_api_authorise_key() {
 
 
 /**
- * Authorise a request to either submit or read records.
+ * Authorise a user request.
  *
  * Uses the posted password and email to check that
  * the user is valid and activated.
@@ -203,6 +222,9 @@ function indicia_api_authorise_user() {
   }
 
   if (!user_check_password($password, $existing_user)) {
+    return FALSE;
+  } elseif ($existing_user->status != 1) {
+    // Check for activation.
     return FALSE;
   }
 
@@ -313,6 +335,32 @@ function indicia_api_get_user_id($email, $firstname, $secondname, $cms_id = NULL
   return -1;
 }
 
+/**
+ *  Check for existing user that do not have indicia id in their profile field.
+ *
+ * @param $existing_user_obj
+ */
+function check_user_indicia_id($existing_user_obj) {
+    // Allow to update own user record only.
+    if (!ownAuthenticated($existing_user_obj)) {
+        return;
+    }
+
+    $indicia_user_id = $existing_user_obj->{INDICIA_ID_FIELD}->value();
+    if (!$indicia_user_id || $indicia_user_id == -1) {
+        indicia_api_log('Associating indicia user id');
+        // Look up indicia id.
+        $indicia_user_id = indicia_api_get_user_id($existing_user_obj->mail->value(),
+            $existing_user_obj->{FIRSTNAME_FIELD}->value(),
+            $existing_user_obj->{SECONDNAME_FIELD}->value(),
+            $existing_user_obj->uid->value());
+
+        if (is_int($indicia_user_id)) {
+            $existing_user_obj->{INDICIA_ID_FIELD}->set($indicia_user_id);
+            $existing_user_obj->save();
+        }
+    }
+}
 
 /**
  * Test if the supplied password is acceptable.

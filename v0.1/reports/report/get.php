@@ -1,10 +1,9 @@
 <?php
 
 /**
- * Reports GET/POST request handler.
+ * Reports GET request handler.
  *
- * Parameters can be provided as GET or POST data, since POST is required when
- * supporting long parameter values for geometry filters. Requires the following
+Requires the following
  * query parameters:
  * * report - the path to the report file to run on the warehouse,
  *   e.g. 'library/totals/filterable_species_occurrence_image_counts.xml'
@@ -23,15 +22,15 @@
  * orderby, sortdir, limit or offset you wish to pass to the report.
  * Prints out a JSON string for the report response.
  */
-function indicia_api_reports_get_post() {
+function report_get() {
   indicia_api_log('Reports GET');
   indicia_api_log(print_r($_GET, 1));
 
-  if (!validate_reports_get_request()) {
+  if (!validate_report_get_request()) {
     return;
   }
 
-  $request = $_GET + $_POST;
+  $request = $_GET;
 
   // Wrap user for ease of accessing fields.
   $user_wrapped = entity_metadata_wrapper('user', $GLOBALS['user']);
@@ -85,7 +84,7 @@ function indicia_api_reports_get_post() {
  * @return bool
  *   True if the request is valid
  */
-function validate_reports_get_request() {
+function validate_report_get_request() {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
   if (!indicia_api_authorise_key()) {
