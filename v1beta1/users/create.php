@@ -1,30 +1,18 @@
 <?php
 
 /**
- * Setup the profile fields.
- */
-const FIRSTNAME_FIELD = 'field_first_name';
-const SECONDNAME_FIELD = 'field_last_name';
-const CONFIRMATION_FIELD = 'field_confirmation_code';
-const INDICIA_ID_FIELD = 'field_indicia_user_id';
-
-
-/**
  * This function handles the registration request.
  *
  * The function either returns an error or the user's details.
  */
-function users_create() {
-  indicia_api_log('Users POST');
-  indicia_api_log(print_r($_POST, 1));
-
-  if (!validate_users_create_request()) {
+function users_create($request) {
+  if (!validate_users_create_request($request)) {
     return;
   }
 
   // Create account for user.
   try {
-    $new_user_obj = create_new_user();
+    $new_user_obj = create_new_user($request);
   }
   catch (Exception $e) {
     error_print(400, 'Bad Request', 'User could not be created.');
@@ -40,18 +28,18 @@ function users_create() {
   indicia_api_log('User created');
 }
 
-function validate_users_create_request() {
+function validate_users_create_request($request) {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
-  if (!indicia_api_authorise_key()) {
+  if (!indicia_api_authorise_key($request)) {
     error_print(401, 'Unauthorized', 'Missing or incorrect API key');
 
     return FALSE;
   }
 
   // Check minimum valid parameters.
-  $firstname = $_POST['firstname'];
-  $secondname = $_POST['secondname'];
+  $firstname = $request['firstname'];
+  $secondname = $request['secondname'];
   if (empty($firstname) || empty($secondname)) {
     error_print(400, 'Bad Request', 'Invalid or missing user firstname or secondname');
 
@@ -59,7 +47,7 @@ function validate_users_create_request() {
   }
 
   // Check email is valid.
-  $email = $_POST['email'];
+  $email = $request['email'];
   if (empty($email) || valid_email_address($email) != 1) {
     error_print(400, 'Bad Request', 'Invalid or missing name');
 
@@ -67,7 +55,7 @@ function validate_users_create_request() {
   }
 
   // Apply a password strength requirement.
-  $password = $_POST['password'];
+  $password = $request['password'];
   if (empty($password) || indicia_api_validate_password($password) != 1) {
     error_print(400, 'Bad Request', 'Invalid or missing password');
 
@@ -75,8 +63,8 @@ function validate_users_create_request() {
   }
 
   // Check for an existing user. If found return "already exists" error.
-  $existing_user = user_load_by_mail($email);
-  if ($existing_user) {
+  $user = user_load_by_mail($email);
+  if ($user) {
     error_print(400, 'Bad Request', 'Account already exists');
 
     return FALSE;
@@ -85,12 +73,12 @@ function validate_users_create_request() {
   return TRUE;
 }
 
-function create_new_user() {
+function create_new_user($request) {
   // Pull out parameters from POST request.
-  $firstname = empty($_POST['firstname']) ? '' : $_POST['firstname'];
-  $secondname = empty($_POST['secondname']) ? '' : $_POST['secondname'];
-  $email = $_POST['email'];
-  $password = $_POST['password'];
+  $firstname = empty($request['firstname']) ? '' : $request['firstname'];
+  $secondname = empty($request['secondname']) ? '' : $request['secondname'];
+  $email = $request['email'];
+  $password = $request['password'];
 
   // Generate the user confirmation code returned via email.
   $confirmation_code = indicia_api_generate_random_string(20);
@@ -129,4 +117,22 @@ function send_activation_email($new_user) {
     user_preferred_language($new_user),
     $params
   );
+}
+
+function return_user_details($user_full, $fullDetails = FALSE) {
+  $data = [
+    'type' => 'users',
+    'id' => (int) $user_full->getIdentifier(),
+    'firstname' => $user_full->{FIRSTNAME_FIELD}->value(),
+    'secondname' => $user_full->{SECONDNAME_FIELD}->value(),
+  ];
+
+  if (ownAuthenticated($user_full) || $fullDetails) {
+    $data['name'] = $user_full->name->value();
+    $data['email'] = $user_full->mail->value();
+    $data['warehouse_id'] = (int) $user_full->{INDICIA_ID_FIELD}->value();
+  }
+
+  $output = ['data' => $data];
+  drupal_json_output($output);
 }

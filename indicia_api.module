@@ -18,6 +18,15 @@ const API_BASE = 'api';
 const API_VERSION = 'v1beta1';
 
 /**
+ * Setup the profile fields.
+ */
+const FIRSTNAME_FIELD = 'field_first_name';
+const SECONDNAME_FIELD = 'field_last_name';
+const CONFIRMATION_FIELD = 'field_confirmation_code';
+const INDICIA_ID_FIELD = 'field_indicia_user_id';
+
+
+/**
  * Implements hook_permission().
  */
 function indicia_api_permission() {
@@ -53,35 +62,35 @@ function indicia_api_menu() {
     'title' => 'Samples',
     'page callback' => 'indicia_api_samples',
     'access callback' => TRUE,
-    'file' => API_VERSION.'/samples/entry.inc',
+    'file' => API_VERSION . '/samples/entry.inc',
   );
 
-  // TODO: support single sample resource
+  /* TODO: support single sample resource. */
 
   $items["$api_path/users"] = array(
     'title' => 'Users',
     'page callback' => 'indicia_api_users',
     'access callback' => TRUE,
-    'file' => API_VERSION.'/users/entry.inc',
+    'file' => API_VERSION . '/users/entry.inc',
   );
 
-   $items["$api_path/users/%"] = array(
+  $items["$api_path/users/%"] = array(
     'title' => 'Users',
     'page callback' => 'indicia_api_user',
     'access callback' => TRUE,
-    'page arguments' => array(1),
-    'file' => API_VERSION.'/users/user/entry.inc',
-   );
+    'page arguments' => array(3),
+    'file' => API_VERSION . '/users/user/entry.inc',
+  );
 
-   // TODO: support all reports resource
+  /* TODO: support all reports resource. */
 
-   $items["$api_path/reports/%"] = array(
+  $items["$api_path/reports/%"] = array(
     'title' => 'Reports',
     'page callback' => 'indicia_api_report',
     'access callback' => TRUE,
     'page arguments' => array(1),
-    'file' => API_VERSION.'/reports/report/entry.inc',
-   );
+    'file' => API_VERSION . '/reports/report/entry.inc',
+  );
 
   // User Interface options.
   // Dashboard.
@@ -165,8 +174,7 @@ function indicia_api_key_load($id = NULL) {
  *
  * This function iterates through the list of key accounts from database table.
  */
-function indicia_api_authorise_key() {
-  $request = $_POST + $_GET;
+function indicia_api_authorise_key($request) {
   $key = $request['api_key'];
   if (empty($key)) {
     return FALSE;
@@ -340,26 +348,26 @@ function indicia_api_get_user_id($email, $firstname, $secondname, $cms_id = NULL
  *
  * @param $existing_user_obj
  */
-function check_user_indicia_id($existing_user_obj) {
-    // Allow to update own user record only.
-    if (!ownAuthenticated($existing_user_obj)) {
-        return;
-    }
+function check_user_indicia_id($user_full) {
+  // Allow to update own user record only.
+  if (!ownAuthenticated($user_full)) {
+    return;
+  }
 
-    $indicia_user_id = $existing_user_obj->{INDICIA_ID_FIELD}->value();
-    if (!$indicia_user_id || $indicia_user_id == -1) {
-        indicia_api_log('Associating indicia user id');
-        // Look up indicia id.
-        $indicia_user_id = indicia_api_get_user_id($existing_user_obj->mail->value(),
-            $existing_user_obj->{FIRSTNAME_FIELD}->value(),
-            $existing_user_obj->{SECONDNAME_FIELD}->value(),
-            $existing_user_obj->uid->value());
+  $indicia_user_id = $user_full->{INDICIA_ID_FIELD}->value();
+  if (!$indicia_user_id || $indicia_user_id == -1) {
+    indicia_api_log('Associating indicia user id');
+    // Look up indicia id.
+    $indicia_user_id = indicia_api_get_user_id($user_full->mail->value(),
+      $user_full->{FIRSTNAME_FIELD}->value(),
+      $user_full->{SECONDNAME_FIELD}->value(),
+      $user_full->uid->value());
 
-        if (is_int($indicia_user_id)) {
-            $existing_user_obj->{INDICIA_ID_FIELD}->set($indicia_user_id);
-            $existing_user_obj->save();
-        }
+    if (is_int($indicia_user_id)) {
+      $user_full->{INDICIA_ID_FIELD}->set($indicia_user_id);
+      $user_full->save();
     }
+  }
 }
 
 /**

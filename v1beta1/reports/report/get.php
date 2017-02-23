@@ -22,15 +22,10 @@ Requires the following
  * orderby, sortdir, limit or offset you wish to pass to the report.
  * Prints out a JSON string for the report response.
  */
-function report_get() {
-  indicia_api_log('Reports GET');
-  indicia_api_log(print_r($_GET, 1));
-
-  if (!validate_report_get_request()) {
+function report_get($request, $reportID) {
+  if (!validate_report_get_request($request, $reportID)) {
     return;
   }
-
-  $request = $_GET;
 
   // Wrap user for ease of accessing fields.
   $user_wrapped = entity_metadata_wrapper('user', $GLOBALS['user']);
@@ -46,6 +41,7 @@ function report_get() {
   unset($request['api_key']);
   unset($request['email']);
   unset($request['cacheTimeout']);
+  unset($request['user_id']);
 
   $defaults = array(
     'reportSource' => 'local',
@@ -55,7 +51,7 @@ function report_get() {
     $request['user_id'] = $user_wrapped->field_indicia_user_id->value();
   }
 
-  $request = array_merge($defaults, $auth, $request);
+  $request = array_merge($defaults, $auth, $request, [ 'report' => $reportID ]);
 
   $cache_loaded = FALSE;
   if ($caching !== 'false') {
@@ -84,10 +80,10 @@ function report_get() {
  * @return bool
  *   True if the request is valid
  */
-function validate_report_get_request() {
+function validate_report_get_request($request, $reportID) {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
-  if (!indicia_api_authorise_key()) {
+  if (!indicia_api_authorise_key($request)) {
     error_print(401, 'Unauthorized', 'Missing or incorrect API key');
 
     return FALSE;
@@ -99,7 +95,7 @@ function validate_report_get_request() {
     return FALSE;
   }
 
-  if (empty($_GET['report'])) {
+  if (empty($reportID)) {
     error_print(400, 'Bad Request', 'Missing or incorrect report url');
 
     return FALSE;

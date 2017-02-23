@@ -3,12 +3,10 @@
 /**
  * Samples POST request handler.
  */
-function samples_create() {
-  indicia_api_log('Samples POST');
-  indicia_api_log(print_r($_POST, 1));
-  $submission = json_decode($_POST['submission'], TRUE);
+function samples_create($request) {
+  $submission = json_decode($request['submission'], TRUE);
 
-  if (!validate_samples_create_request($submission)) {
+  if (!validate_samples_create_request($request, $submission)) {
     return;
   }
 
@@ -265,10 +263,10 @@ function find_duplicates($submission) {
  * @return bool
  *   True if the request is valid
  */
-function validate_samples_create_request($submission) {
+function validate_samples_create_request($request, $submission) {
   // Reject submissions with an incorrect secret (or instances where secret is
   // Not set).
-  if (!indicia_api_authorise_key()) {
+  if (!indicia_api_authorise_key($request)) {
     error_print(401, 'Unauthorized', 'Missing or incorrect API key');
 
     return FALSE;
@@ -280,7 +278,7 @@ function validate_samples_create_request($submission) {
     return FALSE;
   }
 
-  $survey_id = intval($_POST['survey_id']);
+  $survey_id = intval($request['survey_id']);
   if ($survey_id == 0) {
     error_print(400, 'Bad Request', 'Missing or incorrect survey_id');
 
