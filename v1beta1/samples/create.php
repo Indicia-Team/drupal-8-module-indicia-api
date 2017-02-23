@@ -498,7 +498,7 @@ function forward_post_to($entity, $submission = NULL, $writeTokens = NULL) {
           data_entry_helper::$final_image_folder=='warehouse') {
           // Final location is the Warehouse
           // @todo Set PERSIST_AUTH false if last file
-          $success = send_file_to_warehouse($item['path'], TRUE, $writeTokens);
+          $success = data_entry_helper::send_file_to_warehouse($item['path'], TRUE, $writeTokens);
         }
         else {
           $success = rename(
@@ -560,58 +560,5 @@ function extract_media_data() {
     }
 
   }
-  return $r;
-}
-
-/**
- * Takes a file that has been uploaded to the client website upload folder, and moves it to the warehouse upload folder using the
- * data services.
- *
- * @param string $path Path to the file to upload, relative to the interim image path folder (normally the
- * client_helpers/upload folder.
- * @param boolean $persist_auth Allows the write nonce to be preserved after sending the file, useful when several files
- * are being uploaded.
- * @param array $readAuth Read authorisation tokens, if not supplied then the $_POST array should contain them.
- * @param string $service Path to the service URL used. Default is data/handle_media, but could be import/upload_csv.
- * @return string Error message, or true if successful.
- */
-function send_file_to_warehouse($path, $persist_auth=FALSE, $readAuth = NULL, $service='data/handle_media') {
-  if ($readAuth==NULL) $readAuth=$_POST;
-  $interim_image_folder = isset(data_entry_helper::$interim_image_folder) ?
-    data_entry_helper::$interim_image_folder :
-    'upload/';
-
-  $interim_path = data_entry_helper::relative_client_helper_path().$interim_image_folder;
-  if (!file_exists($interim_path.$path))
-    return "The file $interim_path$path does not exist and cannot be uploaded to the Warehouse.";
-
-  $serviceUrl = data_entry_helper::$base_url."index.php/services/".$service;
-  // This is used by the file box control which renames uploaded files using a guid system, so disable renaming on the server.
-  $postargs = array('name_is_guid' => 'true');
-  // Attach authentication details
-
-  if (array_key_exists('auth_token', $readAuth))
-    $postargs['auth_token'] = $readAuth['auth_token'];
-  if (array_key_exists('nonce', $readAuth))
-    $postargs['nonce'] = $readAuth['nonce'];
-  if ($persist_auth)
-    $postargs['persist_auth'] = 'true';
-
-  $file_to_upload = array('media_upload'=>'@'.realpath($interim_path.$path));
-  $response = data_entry_helper::http_post($serviceUrl, $file_to_upload + $postargs);
-  $output = json_decode($response['output'], TRUE);
-  $r = TRUE; // Default is success
-  if (is_array($output)) {
-    //an array signals an error
-    if (array_key_exists('error', $output)) {
-      // Return the most detailed bit of error information
-      if (isset($output['errors']['media_upload']))
-        $r = $output['errors']['media_upload'];
-      else
-        $r = $output['error'];
-    }
-  }
-  //remove local copy
-  unlink(realpath($interim_path.$path));
   return $r;
 }
