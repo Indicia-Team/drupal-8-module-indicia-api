@@ -23,7 +23,7 @@ function indicia_api_key($form, &$form_state, $keys = NULL) {
       // one key.
       $key = $keys[0];
 
-      if (user_has_permission($key)) {
+      if (indicia_api_user_has_permission($key)) {
         drupal_set_title(t('@title settings', array('@title' => $key['title'])));
       }
       else {
@@ -155,7 +155,7 @@ function indicia_api_dashboard() {
   $rows = array();
   $keys = indicia_api_key_load();
   foreach ($keys as $key) {
-    if (user_has_permission($key)) {
+    if (indicia_api_user_has_permission($key)) {
       $row = array();
       $row[0] = '<input type="radio"' . ($key['enabled'] ? 'checked' : 'disabled') . ' >';
       $row[1] = $key['title'];
@@ -270,7 +270,7 @@ function indicia_api_delete($form, &$form_state, $keys) {
   $message = t('Are you sure you want to delete %key ?', array('%key' => $key['title']));
 
   // Check if the user has permission to delete an key.
-  if (user_has_permission($key)) {
+  if (indicia_api_user_has_permission($key)) {
     return confirm_form($form, $message,
       CONFIG_PATH,
       t('This action cannot be undone.'),

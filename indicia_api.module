@@ -394,13 +394,12 @@ function indicia_api_validate_password($pass) {
  */
 function indicia_api_log($message, $variables = array(), $severity = WATCHDOG_NOTICE, $link = NULL) {
   // Obtain log mode indicator.
-  $key = $_POST['api_key'];
-  if (empty($key)) {
+  if (empty($_POST['api_key'])) {
     return;
   }
 
   $result = db_query("SELECT * FROM {indicia_api} WHERE api_key = :key",
-    array(':key' => $key));
+    array(':key' => $_POST['api_key']));
   $result_array = $result->fetchAll();
   $log_mode = $result_array[0]->log;
 
