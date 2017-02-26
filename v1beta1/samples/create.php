@@ -96,7 +96,7 @@ function process_parameters($submission, $connection) {
   foreach ($submission['fields'] as $key => $field) {
     $field_key = $key;
     if (($int_key = intval($key)) > 0) {
-      $field_key = 'smp:' . $int_key;
+      $field_key = 'smpAttr:' . $int_key;
     }
     $model['fields'][$field_key] = [
       'value' => $field,
@@ -148,7 +148,7 @@ function process_occurrence_parameters($submission, $connection) {
   foreach ($submission['fields'] as $key => $field) {
     $field_key = $key;
     if (($int_key = intval($key)) > 0) {
-      $field_key = 'smp:' . $int_key;
+      $field_key = 'occAttr:' . $int_key;
     }
     $model['fields'][$field_key] = [
       'value' => $field,
