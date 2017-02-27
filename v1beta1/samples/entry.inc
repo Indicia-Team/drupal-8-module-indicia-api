@@ -10,11 +10,12 @@ function indicia_api_samples() {
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'POST':
       $request = $_POST + $_GET;
+      drupal_static('request', $request);
 
-      indicia_api_log('Samples create');
+      indicia_api_log('[Samples create]');
       indicia_api_log(print_r($request, 1));
 
-      samples_create($request);
+      samples_create();
       break;
 
     case 'OPTIONS':

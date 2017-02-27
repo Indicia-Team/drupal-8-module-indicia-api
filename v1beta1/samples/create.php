@@ -3,10 +3,12 @@
 /**
  * Samples POST request handler.
  */
-function samples_create($request) {
+function samples_create() {
+  $request = drupal_static('request');
+
   $submission = json_decode($request['submission'], TRUE);
 
-  if (!validate_samples_create_request($request, $submission)) {
+  if (!validate_samples_create_request($submission)) {
     return;
   }
 
@@ -16,65 +18,23 @@ function samples_create($request) {
     $auth = data_entry_helper::get_read_write_auth($connection['website_id'], $connection['password']);
   }
   catch (Exception $e) {
-    error_print(502, 'Bad Gateway', 'Something went wrong in obtaining nonce');
+    error_print(502, 'Bad Gateway', 'Something went wrong in obtaining nonce.');
     return;
   }
 
   // Construct post parameter array.
-  $submission = process_parameters($submission, $connection);
+  $processed = process_parameters($submission, $connection);
 
   // Check for duplicates.
-  if (has_duplicates($submission)) {
-    return;
-  }
+//  if (has_duplicates($processed['model'])) {
+//    return;
+//  }
 
   // Send record to indicia.
-  $response = forward_post_to('save', $submission, $auth['write_tokens']);
+  $response = forward_post_to('save', $processed['model'], $processed['files'], $auth['write_tokens']);
 
   // Return response to client.
   return_response($response);
-}
-
-/**
- * Processes the files attached to request.
- */
-function process_files() {
-  $processedFiles = array();
-  foreach ($_FILES as $name => $info) {
-    // If name is sample_photo1 or photo1 etc then process it.
-    if (preg_match('/^(?P<sample>sample_)?photo(?P<id>[0-9])$/', $name, $matches)) {
-      $baseModel = empty($matches['sample']) ? 'occurrence' : 'sample';
-      $name = "$baseModel:image:$matches[id]";
-      // Mobile generated files can have file name in format
-      // Resize.jpg?1333102276814 which will fail the warehouse submission
-      // Process.
-      if (strstr($info['type'], 'jpg') !== FALSE || strstr($info['type'], 'jpeg') !== FALSE) {
-        $info['name'] = uniqid() . '.jpg';
-      }
-      if (strstr($info['type'], 'png') !== FALSE) {
-        $info['name'] = uniqid() . '.png';
-      }
-      $processedFiles[$name] = $info;
-    }
-    // Handle files sent along with a species checklist style submission.
-    // Files should be POSTed in
-    // A field called sc:<gridrow>::photo[1-9] and will then get moved to the
-    // Interim image folder and
-    // Linked to the form using a field called
-    // Sc:<gridrow>::occurremce_media:path:[1-9] .
-    elseif (preg_match('/^sc:(?P<gridrow>.+)::photo(?P<id>[0-9])$/', $name, $matches)) {
-      $interim_image_folder = isset(data_entry_helper::$interim_image_folder) ? data_entry_helper::$interim_image_folder : 'upload/';
-      $uploadPath = data_entry_helper::relative_client_helper_path() . $interim_image_folder;
-      $interimFileName = uniqid() . '.jpg';
-      if (move_uploaded_file($info['tmp_name'], $uploadPath . $interimFileName)) {
-        $_POST["sc:$matches[gridrow]::occurrence_medium:path:$matches[id]"] = $interimFileName;
-      }
-    }
-  }
-  if (!empty($processedFiles)) {
-    $_FILES = $processedFiles;
-    indicia_api_log(print_r($_FILES, 1));
-  }
 }
 
 /**
@@ -92,6 +52,8 @@ function process_parameters($submission, $connection) {
     "fields" => [],
     "subModels" => [],
   ];
+
+  $files = []; // Files for submission.
 
   foreach ($submission['fields'] as $key => $field) {
     $field_key = $key;
@@ -114,28 +76,49 @@ function process_parameters($submission, $connection) {
     $model['fields']['input_form'] = ['value' => $submission['input_form']];
   }
 
-  foreach ($submission['samples'] as $sample) {
-    array_push($model['subModels'], [
-      'fkId' => 'sample_id',
-      'model' => process_parameters($sample),
-    ]);
+  if (isset($submission['samples']) && is_array($submission['samples'])) {
+    foreach ($submission['samples'] as $sample) {
+      $processed = process_parameters($sample, $connection);
+      array_push($model['subModels'], [
+        'fkId' => 'sample_id',
+        'model' => $processed['model'],
+      ]);
+      if (!empty($processed['files'])) {
+        array_merge($files, $processed['files']);
+      }
+    }
   }
 
-  foreach ($submission['occurrences'] as $occurrence) {
-    array_push($model['subModels'], [
-      'fkId' => 'sample_id',
-      'model' => process_occurrence_parameters($occurrence, $connection),
-    ]);
+  if (isset($submission['occurrences']) && is_array($submission['occurrences'])) {
+    foreach ($submission['occurrences'] as $occurrence) {
+      $processed = process_occurrence_parameters($occurrence, $connection);
+      array_push($model['subModels'], [
+        'fkId' => 'sample_id',
+        'model' => $processed['model'],
+      ]);
+      if (!empty($processed['files'])) {
+        array_merge($files, $processed['files']);
+      }
+    }
   }
 
-  foreach ($submission['media'] as $media) {
-    array_push($model['subModels'], [
-      'fkId' => 'sample_id',
-      'model' => process_media_parameters($media, FALSE),
-    ]);
+  if (isset($submission['media']) && is_array($submission['media'])) {
+    foreach ($submission['media'] as $media) {
+      $processed = process_media_parameters($media, FALSE);
+      array_push($model['subModels'], [
+        'fkId' => 'sample_id',
+        'model' => $processed['model'],
+      ]);
+      if (!empty($processed['files'])) {
+        array_push($files, $processed['file']);
+      }
+    }
   }
-
-  return $model;
+  indicia_api_log('Processed sample parameters.');
+  indicia_api_log(print_r($submission, 1));
+  indicia_api_log(print_r($model, 1));
+  indicia_api_log(print_r($files, 1));
+  return [ 'model' => $model, 'files' => $files];
 }
 
 function process_occurrence_parameters($submission, $connection) {
@@ -145,33 +128,49 @@ function process_occurrence_parameters($submission, $connection) {
     "subModels" => [],
   ];
 
-  foreach ($submission['fields'] as $key => $field) {
-    $field_key = $key;
-    if (($int_key = intval($key)) > 0) {
-      $field_key = 'occAttr:' . $int_key;
+  $files = []; // Files for submission.
+
+  if (isset($submission['fields']) && is_array($submission['fields'])) {
+    foreach ($submission['fields'] as $key => $field) {
+      $field_key = $key;
+      if (($int_key = intval($key)) > 0) {
+        $field_key = 'occAttr:' . $int_key;
+      }
+      $model['fields'][$field_key] = [
+        'value' => $field,
+      ];
     }
-    $model['fields'][$field_key] = [
-      'value' => $field,
-    ];
   }
 
   $model['fields']['website_id'] = ['value' => $connection['website_id']];
-  $model['fields']['zero_abundance'] = ['training' => $submission['training']];
+  if (isset($submission['training'])) {
+    $model['fields']['zero_abundance'] = ['training' => $submission['training']];
+  }
+
   $model['fields']['zero_abundance'] = ['value' => 'f'];
   $model['fields']['record_status'] = ['value' => 'C'];
 
-  if ($submission['external_key']) {
+  if (isset($submission['external_key'])) {
     $model['fields']['external_key'] = ['value' => $submission['external_key']];
   }
 
-  foreach ($submission['media'] as $media) {
-    array_push($model['subModels'], [
-      'fkId' => 'occurrence_id',
-      'model' => process_media_parameters($media),
-    ]);
+  if (isset($submission['media']) && is_array($submission['media'])) {
+    foreach ($submission['media'] as $media) {
+      $processed = process_media_parameters($media);
+      array_push($model['subModels'], [
+        'fkId' => 'occurrence_id',
+        'model' => $processed['model'],
+      ]);
+      if (!empty($processed['file'])) {
+        array_push($files, $processed['file']);
+      }
+    }
   }
 
-  return $model;
+  indicia_api_log('Processed occurrence parameters.');
+  indicia_api_log(print_r($submission, 1));
+  indicia_api_log(print_r($model, 1));
+  return [ 'model' => $model, 'files' => $files];
 }
 
 
@@ -182,14 +181,18 @@ function process_media_parameters($submission, $occurrence = TRUE) {
   ];
 
   // Generate new name.
-  $ext = $_FILES[$submission['name']]['type'] === 'image/png' ? '.png' : '.jpg';
+  $file = $_FILES[$submission['name']];
+  $ext = $file['type'] === 'image/png' ? '.png' : '.jpg';
   $newName = bin2hex(openssl_random_pseudo_bytes(20)) . $ext;
 
-  $_FILES[$submission['name']]['name'] = $newName;
+  $file['name'] = $newName;
 
   $model['fields']['path'] = ['value' => $newName];
 
-  return $model;
+  indicia_api_log('Processed media parameters.');
+  indicia_api_log(print_r($submission, 1));
+  indicia_api_log(print_r($model, 1));
+  return [ 'model' => $model, 'file' => $file];
 }
 
 /**
@@ -204,8 +207,10 @@ function process_media_parameters($submission, $occurrence = TRUE) {
  *   Returns true if has duplicates.
  */
 function has_duplicates($submission) {
+  indicia_api_log('Searching for duplicates.');
+
   $duplicates = find_duplicates($submission);
-  if (count($duplicates) > 0) {
+  if (sizeof($duplicates) > 0) {
     $errors = [];
     foreach ($duplicates as $duplicate) {
       // TODO: get actual sample external_key,
@@ -241,19 +246,20 @@ function find_duplicates($submission) {
   $auth = data_entry_helper::get_read_auth($connection['website_id'], $connection['password']);
 
   $duplicates = [];
-  foreach ($submission['subModels'] as $occurrence) {
-    $existing = data_entry_helper::get_population_data(array(
-      'table' => 'occurrence',
-      'extraParams' => array_merge($auth, [
-        'view' => 'detail',
-        'external_key' => $occurrence['model']['fields']['external_key']['value'],
-      ]),
-      // Forces a load from the db rather than local cache.
-      'nocache' => TRUE,
-    ));
-    $duplicates = array_merge($duplicates, $existing);
+  if (isset($submission['subModels']) && is_array($submission['subModels'])) {
+    foreach ($submission['subModels'] as $occurrence) {
+      $existing = data_entry_helper::get_population_data(array(
+        'table' => 'occurrence',
+        'extraParams' => array_merge($auth, [
+          'view' => 'detail',
+          'external_key' => $occurrence['model']['fields']['external_key']['value'],
+        ]),
+        // Forces a load from the db rather than local cache.
+        'nocache' => TRUE,
+      ));
+      $duplicates = array_merge($duplicates, $existing);
+    }
   }
-
   return $duplicates;
 }
 
@@ -263,24 +269,32 @@ function find_duplicates($submission) {
  * @return bool
  *   True if the request is valid
  */
-function validate_samples_create_request($request, $submission) {
+function validate_samples_create_request($submission) {
+  $request = drupal_static('request');
+
   // Reject submissions with an incorrect secret (or instances where secret is
   // Not set).
-  if (!indicia_api_authorise_key($request)) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect API key');
+  if (!indicia_api_authorise_key()) {
+    error_print(401, 'Unauthorized', 'Missing or incorrect API key.');
 
     return FALSE;
   }
 
   if (!indicia_api_authorise_user()) {
-    error_print(400, 'Bad Request', 'Could not find/authenticate user');
+    error_print(400, 'Bad Request', 'Could not find/authenticate user.');
 
     return FALSE;
   }
 
   $survey_id = intval($request['survey_id']);
   if ($survey_id == 0) {
-    error_print(400, 'Bad Request', 'Missing or incorrect survey_id');
+    error_print(400, 'Bad Request', 'Missing or incorrect survey_id.');
+
+    return FALSE;
+  }
+
+  if (empty($submission)) {
+    error_print(400, 'Bad Request', 'Missing or invalid submission.');
 
     return FALSE;
   }
@@ -310,7 +324,7 @@ function validate_sample($model) {
     return FALSE;
   }
 
-  if (!empty($model['samples'])) {
+  if (isset($model['samples']) && is_array($model['samples'])) {
     foreach ($model['samples'] as $sample) {
       if (!validate_sample($sample)) {
         return FALSE;
@@ -318,7 +332,7 @@ function validate_sample($model) {
     }
   }
 
-  if (!empty($model['occurrences'])) {
+  if (isset($model['occurrences']) && is_array($model['occurrences'])) {
     foreach ($model['occurrences'] as $occurrence) {
       if (!validate_occurrence($occurrence)) {
         return FALSE;
@@ -326,7 +340,7 @@ function validate_sample($model) {
     }
   }
 
-  if (!empty($model['media'])) {
+  if (isset($model['media']) && is_array($model['media'])) {
     foreach ($model['media'] as $media) {
       if (!validate_media($media)) {
         return FALSE;
@@ -343,8 +357,7 @@ function validate_occurrence($model) {
 
     return FALSE;
   }
-
-  if (!empty($model['media'])) {
+  if (isset($model['media']) && is_array($model['media'])) {
     foreach ($model['media'] as $media) {
       if (!validate_media($media)) {
         return FALSE;
@@ -373,15 +386,22 @@ function validate_media($model) {
 }
 
 function return_response($response) {
+  indicia_api_log('Returning response.');
+
   if (isset($response['error'])) {
-    $errors = [];
-    foreach ($response['errors'] as $key => $error) {
-      array_push($errors, [
-        'title' => $key,
-        'description' => $error,
-      ]);
+    if (sizeof($response['errors']) > 0) {
+      $errors = [];
+      foreach ($response['errors'] as $key => $error) {
+        array_push($errors, [
+          'title' => $key,
+          'description' => $error,
+        ]);
+      }
+      error_print(400, 'Bad Request', NULL, $errors);
     }
-    error_print(400, 'Bad Request', NULL, $errors);
+    else {
+      error_print(400, 'Bad Request', $response['error']);
+    }
   }
   else {
     // Created.
@@ -390,7 +410,7 @@ function return_response($response) {
 
     $output = ['data' => $data];
     drupal_json_output($output);
-    indicia_api_log(print_r($response, 1));
+    indicia_api_log(print_r($output, 1));
   }
 }
 
@@ -401,25 +421,26 @@ function extract_sample_response($model) {
     'created_on' => $model['created_on'],
     'updated_on' => $model['updated_on'],
   ];
+  if (isset($model['children']) && is_array($model['children'])) {
+    foreach ($model['children'] as $child) {
+      switch ($child['model']) {
+        case 'occurrence':
+          $data['occurrences'] = empty($data['occurrences']) ? [] : $data['occurrences'];
+          array_push($data['occurrences'], extract_occurrence_response($child));
+          break;
 
-  foreach ($model['children'] as $child) {
-    switch ($child['model']) {
-      case 'occurrence':
-        $data['occurrences'] = empty($data['occurrences']) ? [] : $data['occurrences'];
-        array_push($data['occurrences'], extract_occurrence_response($child));
-        break;
+        case 'sample':
+          $data['samples'] = empty($data['samples']) ? [] : $data['samples'];
+          array_push($data['samples'], extract_sample_response($child));
+          break;
 
-      case 'sample':
-        $data['samples'] = empty($data['samples']) ? [] : $data['samples'];
-        array_push($data['samples'], extract_sample_response($child));
-        break;
+        case 'sample_medium':
+          $data['media'] = empty($data['media']) ? [] : $data['media'];
+          array_push($data['media'], extract_media_response($child));
+          break;
 
-      case 'sample_medium':
-        $data['media'] = empty($data['media']) ? [] : $data['media'];
-        array_push($data['media'], extract_media_response($child));
-        break;
-
-      default:
+        default:
+      }
     }
   }
   return $data;
@@ -433,14 +454,16 @@ function extract_occurrence_response($model) {
     'updated_on' => $model['updated_on'],
   ];
 
-  foreach ($model['children'] as $child) {
-    switch ($child['model']) {
-      case 'occurrence_medium':
-        $data['media'] = empty($data['media']) ? [] : $data['media'];
-        array_push($data['media'], extract_media_response($child));
-        break;
+  if (isset($model['children']) && is_array($model['children'])) {
+    foreach ($model['children'] as $child) {
+      switch ($child['model']) {
+        case 'occurrence_medium':
+          $data['media'] = empty($data['media']) ? [] : $data['media'];
+          array_push($data['media'], extract_media_response($child));
+          break;
 
-      default:
+        default:
+      }
     }
   }
 
@@ -458,8 +481,8 @@ function extract_media_response($model) {
   return $data;
 }
 
-function forward_post_to($entity, $submission = NULL, $writeTokens = NULL) {
-  $media = extract_media_data($_FILES);
+function forward_post_to($entity, $submission = NULL, $files = NULL, $writeTokens = NULL) {
+  $media = prepare_media_for_upload($files);
   $request = data_entry_helper::$base_url . "index.php/services/data/$entity";
   $postargs = 'submission=' . urlencode(json_encode($submission));
 
@@ -475,6 +498,7 @@ function forward_post_to($entity, $submission = NULL, $writeTokens = NULL) {
   if (count($media) > 0) {
     $postargs .= '&persist_auth=true';
   }
+  indicia_api_log('Sending new model to warehouse.');
   $response = data_entry_helper::http_post($request, $postargs, FALSE);
 
   // The response should be in JSON if it worked.
@@ -482,15 +506,20 @@ function forward_post_to($entity, $submission = NULL, $writeTokens = NULL) {
 
   // If this is not JSON, it is an error, so just return it as is.
   if (!$output) {
+    indicia_api_log('Problem occurred with the submission.', NULL, WATCHDOG_ERROR);
     $output = $response['output'];
   }
 
   if (is_array($output) && array_key_exists('success', $output))  {
+    if (sizeof($media) > 0) {
+      indicia_api_log('Uploading ' . sizeof($media) .' media files.');
+    }
+
     // Submission succeeded.
     // So we also need to move the images to the final location.
     $image_overall_success = TRUE;
     $image_errors = array();
-    foreach ($media as $item) {
+    foreach ((array)$media as $item) {
       // No need to resend an existing image, or a media link, just local files.
       if ((empty($item['media_type']) || preg_match('/:Local$/', $item['media_type'])) &&
         empty($item['id'])) {
@@ -498,6 +527,7 @@ function forward_post_to($entity, $submission = NULL, $writeTokens = NULL) {
           data_entry_helper::$final_image_folder=='warehouse') {
           // Final location is the Warehouse
           // @todo Set PERSIST_AUTH false if last file
+          indicia_api_log('Uploading ' . $item['path']);
           $success = data_entry_helper::send_file_to_warehouse($item['path'], TRUE, $writeTokens);
         }
         else {
@@ -508,6 +538,9 @@ function forward_post_to($entity, $submission = NULL, $writeTokens = NULL) {
         }
 
         if ($success !== TRUE) {
+          indicia_api_log('Errors', NULL, WATCHDOG_ERROR);
+          indicia_api_log(print_r($success, 1), NULL, WATCHDOG_ERROR);
+
           // Record all files that fail to move successfully.
           $image_overall_success = FALSE;
           $image_errors[] = $success;
@@ -524,9 +557,11 @@ function forward_post_to($entity, $submission = NULL, $writeTokens = NULL) {
   return $output;
 }
 
-function extract_media_data() {
+function prepare_media_for_upload($files = []) {
+  indicia_api_log('Preparing media for upload.');
+
   $r = [];
-  foreach ($_FILES as $key => $file) {
+  foreach ($files as $key => $file) {
     if ($file['error'] == '1') {
       // File too big error dur to php.ini setting.
       if (data_entry_helper::$validation_errors === NULL) {

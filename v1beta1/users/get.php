@@ -6,18 +6,21 @@
  *
  * The function either returns an error or the user's details.
  */
-function users_get($request) {
-  if (!validate_users_get_request($request)) {
+function users_get() {
+  $request = drupal_static('request');
+
+  if (!validate_users_get_request()) {
     return;
   }
 
   // Return data.
   $users = [];
 
-  $email = $request['email'];
-  $name = $request['name'];
-  if ($name) {
+  if (isset($request['name'])) {
     // Username.
+    $name = $request['name'];
+    indicia_api_log('Searching users by name: ' . $name . '.');
+
     $user = user_load_by_name($name);
     if ($user) {
       $user_full = entity_metadata_wrapper('user', $user);
@@ -26,8 +29,11 @@ function users_get($request) {
       check_user_indicia_id($user_full);
     }
   }
-  elseif ($email) {
+  elseif (isset($request['email'])) {
     // Email.
+    $email = $request['email'];
+    indicia_api_log('Searching users by email: ' . $email . '.');
+
     $user = user_load_by_mail($email);
     if ($user) {
       $user_full = entity_metadata_wrapper('user', $user);
@@ -43,26 +49,27 @@ function users_get($request) {
   // Return the user's info to client.
   drupal_add_http_header('Status', '200 OK');
   return_users_details($users);
-  indicia_api_log('User details returned');
 }
 
-function validate_users_get_request($request) {
+function validate_users_get_request() {
+  $request = drupal_static('request');
+
   // API key authorise.
-  if (!indicia_api_authorise_key($request)) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect API key');
+  if (!indicia_api_authorise_key()) {
+    error_print(401, 'Unauthorized', 'Missing or incorrect API key.');
 
     return FALSE;
   }
 
   // User authorise
   if (!indicia_api_authorise_user()) {
-    error_print(401, 'Unauthorized', 'Incorrect password or email');
+    error_print(401, 'Unauthorized', 'Incorrect password or email.');
 
     return FALSE;
   }
 
   // Check if the user filter is specified.
-  if (!$request['name'] && !$request['email']) {
+  if (!isset($request['name']) && !isset($request['email'])) {
     // Todo: remove this once the GET supports returning all users.
     error_print(404, 'Not found', 'Full user listing is not supported yet.');
     return;

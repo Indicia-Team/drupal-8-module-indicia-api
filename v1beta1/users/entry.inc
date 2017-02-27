@@ -11,20 +11,22 @@ function indicia_api_users() {
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'POST':
       $request = $_GET + $_POST;
+      drupal_static('request', $request);
 
-      indicia_api_log('Users create');
+      indicia_api_log('[Users create]');
       indicia_api_log(print_r($request, 1));
 
-      users_create($request);
+      users_create();
       break;
 
     case 'GET':
       $request = $_GET + $_POST;
+      drupal_static('request', $request);
 
-      indicia_api_log('Users get');
+      indicia_api_log('[Users get]');
       indicia_api_log(print_r($request, 1));
 
-      users_get($request);
+      users_get();
       break;
 
     case 'OPTIONS':
@@ -36,6 +38,8 @@ function indicia_api_users() {
 }
 
 function return_users_details($user_full, $fullDetails = FALSE) {
+  indicia_api_log('Returning response.');
+
   $data = [];
 
   foreach ($user_full as $user) {
@@ -46,7 +50,7 @@ function return_users_details($user_full, $fullDetails = FALSE) {
       'secondname' => $user->{SECONDNAME_FIELD}->value(),
     ];
 
-    if (ownAuthenticated($user) || $fullDetails) {
+    if (ownAuthenticated($user, TRUE) || $fullDetails) {
       $userData['name'] = $user->name->value();
       $userData['email'] = $user->mail->value();
       $userData['warehouse_id'] = (int) $user->{INDICIA_ID_FIELD}->value();
@@ -57,10 +61,15 @@ function return_users_details($user_full, $fullDetails = FALSE) {
 
   $output = ['data' => $data];
   drupal_json_output($output);
+  indicia_api_log(print_r($output, 1));
 }
 
 
 function ownAuthenticated($user) {
+  if (empty($_SERVER['PHP_AUTH_USER'])){
+    return FALSE;
+  }
+
   // Allow to update own user record only.
   if(filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL) &&
     $_SERVER['PHP_AUTH_USER'] === $user->mail->value()) {

@@ -9,17 +9,18 @@ function indicia_api_report() {
 
   // Extract report ID
   $reportStartPos = strlen(base_path() . API_BASE . API_VERSION . '/reports/');
-  $reportEndPos = strpos($_SERVER[REQUEST_URI], '.xml') + 4 - $reportStartPos;
-  $reportID = substr($_SERVER[REQUEST_URI], $reportStartPos, $reportEndPos);
+  $reportEndPos = strpos($_SERVER['REQUEST_URI'], '.xml') + 4 - $reportStartPos;
+  $reportID = substr($_SERVER['REQUEST_URI'], $reportStartPos, $reportEndPos);
 
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'GET':
       $request = $_GET;
+      drupal_static('request', $request);
 
-      indicia_api_log('Reports get');
+      indicia_api_log('[Reports get]');
       indicia_api_log(print_r($request, 1));
 
-      report_get($request, $reportID);
+      report_get($reportID);
       break;
 
     case 'OPTIONS':

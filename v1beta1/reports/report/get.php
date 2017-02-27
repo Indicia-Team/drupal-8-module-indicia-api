@@ -22,8 +22,11 @@ Requires the following
  * orderby, sortdir, limit or offset you wish to pass to the report.
  * Prints out a JSON string for the report response.
  */
-function report_get($request, $reportID) {
-  if (!validate_report_get_request($request, $reportID)) {
+function report_get($reportID) {
+  $request = drupal_static('request');
+  $params = $request; // TODO: clone it
+
+  if (!validate_report_get_request($reportID)) {
     return;
   }
 
@@ -38,24 +41,24 @@ function report_get($request, $reportID) {
   $caching = !empty($request['caching']) ? $request['caching'] : 'false';
   $cache_timeout = !empty($request['cacheTimeout']) ? $request['cacheTimeout'] : 3600;
 
-  unset($request['api_key']);
-  unset($request['email']);
-  unset($request['cacheTimeout']);
-  unset($request['user_id']);
+  unset($params['api_key']);
+  unset($params['email']);
+  unset($params['cacheTimeout']);
+  unset($params['user_id']);
 
   $defaults = array(
     'reportSource' => 'local',
   );
 
   if ($caching === 'false' || $request['caching'] === 'perUser') {
-    $request['user_id'] = $user_wrapped->field_indicia_user_id->value();
+    $params['user_id'] = $user_wrapped->field_indicia_user_id->value();
   }
 
-  $request = array_merge($defaults, $auth, $request, [ 'report' => $reportID ]);
+  $params = array_merge($defaults, $auth, $params, [ 'report' => $reportID ]);
 
   $cache_loaded = FALSE;
   if ($caching !== 'false') {
-    $response = data_entry_helper::cache_get($request, $cache_timeout);
+    $response = data_entry_helper::cache_get($params, $cache_timeout);
     if ($response !== FALSE) {
       $response = json_decode($response, TRUE);
       $cache_loaded = TRUE;
@@ -65,13 +68,13 @@ function report_get($request, $reportID) {
 
   if (!isset($response) || $response === FALSE) {
     $response = data_entry_helper::http_post(
-      $url . '?' . data_entry_helper::array_to_query_string($request),
+      $url . '?' . data_entry_helper::array_to_query_string($params),
       NULL,
       FALSE
     );
   }
 
-  return_report_response($response, $request, $cache_loaded, $caching, $cache_timeout);
+  return_report_response($response, $params, $cache_loaded, $caching, $cache_timeout);
 }
 
 /**
@@ -80,23 +83,23 @@ function report_get($request, $reportID) {
  * @return bool
  *   True if the request is valid
  */
-function validate_report_get_request($request, $reportID) {
+function validate_report_get_request($reportID) {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
-  if (!indicia_api_authorise_key($request)) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect API key');
+  if (!indicia_api_authorise_key()) {
+    error_print(401, 'Unauthorized', 'Missing or incorrect API key.');
 
     return FALSE;
   }
 
   if (!indicia_api_authorise_user()) {
-    error_print(401, 'Unauthorized', 'Could not find/authenticate user');
+    error_print(401, 'Unauthorized', 'Could not find/authenticate user.');
 
     return FALSE;
   }
 
   if (empty($reportID)) {
-    error_print(400, 'Bad Request', 'Missing or incorrect report url');
+    error_print(400, 'Bad Request', 'Missing or incorrect report url.');
 
     return FALSE;
   }
@@ -104,7 +107,9 @@ function validate_report_get_request($request, $reportID) {
   return TRUE;
 }
 
-function return_report_response($response, $request, $cache_loaded, $caching, $cache_timeout) {
+function return_report_response($response, $params, $cache_loaded, $caching, $cache_timeout) {
+  indicia_api_log('Returning response.');
+
   if (!isset($response['output'])) {
     error_print(502, 'Bad gateway');
     return;
@@ -118,11 +123,11 @@ function return_report_response($response, $request, $cache_loaded, $caching, $c
   }
 
   if ($caching !== 'false' && !$cache_loaded) {
-    data_entry_helper::cache_set($request, json_encode($response), $cache_timeout);
+    data_entry_helper::cache_set($params, json_encode($response), $cache_timeout);
   }
 
   drupal_add_http_header('Status', '200 OK');
   $output = ['data' => $data];
   drupal_json_output($output);
-  indicia_api_log(print_r($response, 1));
+  indicia_api_log(print_r($output, 1));
 }

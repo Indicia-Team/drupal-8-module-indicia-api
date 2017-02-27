@@ -174,7 +174,9 @@ function indicia_api_key_load($id = NULL) {
  *
  * This function iterates through the list of key accounts from database table.
  */
-function indicia_api_authorise_key($request) {
+function indicia_api_authorise_key() {
+  $request = drupal_static('request');
+
   $key = $request['api_key'];
   if (empty($key)) {
     return FALSE;
@@ -393,26 +395,28 @@ function indicia_api_validate_password($pass) {
  * Messages go to the PHP error log and the Drupal error log.
  */
 function indicia_api_log($message, $variables = array(), $severity = WATCHDOG_NOTICE, $link = NULL) {
+  $request = drupal_static('request');
+
   // Obtain log mode indicator.
-  if (empty($_POST['api_key'])) {
+  if (empty($request['api_key'])) {
     return;
   }
 
   $result = db_query("SELECT * FROM {indicia_api} WHERE api_key = :key",
-    array(':key' => $_POST['api_key']));
+    array(':key' => $request['api_key']));
   $result_array = $result->fetchAll();
   $log_mode = $result_array[0]->log;
 
   switch ($log_mode) {
     case WATCHDOG_DEBUG:
       error_log($message);
-      watchdog("iform_mobile_auth", $message, $variables, $severity, $link);
+      watchdog("Indicia API", $message, $variables, $severity, $link);
       break;
 
     case WATCHDOG_ERROR:
       if ($severity === WATCHDOG_ERROR) {
         error_log($message);
-        watchdog("iform_mobile_auth", $message, $variables, $severity, $link);
+        watchdog("Indicia API", $message, $variables, $severity, $link);
       }
       break;
 
@@ -443,13 +447,13 @@ function error_print($code, $status, $title, $errors = NULL) {
         ],
       ],
     ]);
-    indicia_api_log($title);
+    indicia_api_log($title, NULL, WATCHDOG_ERROR);
   }
   else {
     drupal_json_output([
       'errors' => $errors,
     ]);
-    indicia_api_log('Error');
-    indicia_api_log(print_r($errors, 1));
+    indicia_api_log('Errors', NULL, WATCHDOG_ERROR);
+    indicia_api_log(print_r($errors, 1), NULL, WATCHDOG_ERROR);
   }
 }

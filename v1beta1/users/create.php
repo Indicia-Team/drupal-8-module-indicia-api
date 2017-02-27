@@ -5,14 +5,14 @@
  *
  * The function either returns an error or the user's details.
  */
-function users_create($request) {
-  if (!validate_users_create_request($request)) {
+function users_create() {
+  if (!validate_users_create_request()) {
     return;
   }
 
   // Create account for user.
   try {
-    $new_user_obj = create_new_user($request);
+    $new_user_obj = create_new_user();
   }
   catch (Exception $e) {
     error_print(400, 'Bad Request', 'User could not be created.');
@@ -25,14 +25,15 @@ function users_create($request) {
   // Return the user's details to client.
   drupal_add_http_header('Status', '201 Created');
   return_user_details($new_user_obj, TRUE);
-  indicia_api_log('User created');
 }
 
-function validate_users_create_request($request) {
+function validate_users_create_request() {
+  $request = drupal_static('request');
+
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
-  if (!indicia_api_authorise_key($request)) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect API key');
+  if (!indicia_api_authorise_key()) {
+    error_print(401, 'Unauthorized', 'Missing or incorrect API key.');
 
     return FALSE;
   }
@@ -41,7 +42,7 @@ function validate_users_create_request($request) {
   $firstname = $request['firstname'];
   $secondname = $request['secondname'];
   if (empty($firstname) || empty($secondname)) {
-    error_print(400, 'Bad Request', 'Invalid or missing user firstname or secondname');
+    error_print(400, 'Bad Request', 'Invalid or missing user firstname or secondname.');
 
     return FALSE;
   }
@@ -49,7 +50,7 @@ function validate_users_create_request($request) {
   // Check email is valid.
   $email = $request['email'];
   if (empty($email) || valid_email_address($email) != 1) {
-    error_print(400, 'Bad Request', 'Invalid or missing name');
+    error_print(400, 'Bad Request', 'Invalid or missing name.');
 
     return FALSE;
   }
@@ -57,7 +58,7 @@ function validate_users_create_request($request) {
   // Apply a password strength requirement.
   $password = $request['password'];
   if (empty($password) || indicia_api_validate_password($password) != 1) {
-    error_print(400, 'Bad Request', 'Invalid or missing password');
+    error_print(400, 'Bad Request', 'Invalid or missing password.');
 
     return FALSE;
   }
@@ -65,7 +66,7 @@ function validate_users_create_request($request) {
   // Check for an existing user. If found return "already exists" error.
   $user = user_load_by_mail($email);
   if ($user) {
-    error_print(400, 'Bad Request', 'Account already exists');
+    error_print(400, 'Bad Request', 'Account already exists.');
 
     return FALSE;
   }
@@ -73,7 +74,9 @@ function validate_users_create_request($request) {
   return TRUE;
 }
 
-function create_new_user($request) {
+function create_new_user() {
+  $request = drupal_static('request');
+
   // Pull out parameters from POST request.
   $firstname = empty($request['firstname']) ? '' : $request['firstname'];
   $secondname = empty($request['secondname']) ? '' : $request['secondname'];
@@ -107,6 +110,8 @@ function create_new_user($request) {
 }
 
 function send_activation_email($new_user) {
+  indicia_api_log('Sending activation email to ' . $new_user->mail->value());
+
   $params = [
     'uid' => $new_user->getIdentifier(),
     'confirmation_code' => $new_user->{CONFIRMATION_FIELD}->value(),
@@ -120,6 +125,8 @@ function send_activation_email($new_user) {
 }
 
 function return_user_details($user_full, $fullDetails = FALSE) {
+  indicia_api_log('Returning response.');
+
   $data = [
     'type' => 'users',
     'id' => (int) $user_full->getIdentifier(),
@@ -135,4 +142,5 @@ function return_user_details($user_full, $fullDetails = FALSE) {
 
   $output = ['data' => $data];
   drupal_json_output($output);
+  indicia_api_log(print_r($output, 1));
 }
