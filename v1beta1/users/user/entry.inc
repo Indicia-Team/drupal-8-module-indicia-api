@@ -77,7 +77,7 @@ function ownAuthenticated($user, $silent = FALSE) {
   }
 
   if (!$silent) {
-    indicia_api_log('Own account authenticated ' . $user->getIdentifier() . '.');
+    indicia_api_log('Own account authenticated ' . $user->getIdentifier() . ' ' . $own);
   }
   return $own;
 }
