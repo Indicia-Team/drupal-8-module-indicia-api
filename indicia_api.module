@@ -481,7 +481,7 @@ function ownAuthenticated($user, $silent = FALSE) {
       }
     }
     else {
-      if ($_SERVER['PHP_AUTH_USER'] === $user->name->value()) {
+      if (strtolower($_SERVER['PHP_AUTH_USER']) === strtolower($user->name->value())) {
         // Name.
         $own = TRUE;
       }
