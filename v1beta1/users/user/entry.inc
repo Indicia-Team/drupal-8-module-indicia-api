@@ -58,26 +58,3 @@ function load_user($uid) {
 
   return $user;
 }
-
-// Allow to update own user record only.
-function ownAuthenticated($user, $silent = FALSE) {
-  $own = FALSE;
-
-  if (empty($_SERVER['PHP_AUTH_USER'])){
-    $own = FALSE;
-  }
-  elseif (filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL) &&
-    $_SERVER['PHP_AUTH_USER'] === $user->mail->value()) {
-    // Email.
-    $own = TRUE;
-  }
-  elseif ($_SERVER['PHP_AUTH_USER'] === $user->name->value()) {
-    // Name.
-    $own = TRUE;
-  }
-
-  if (!$silent) {
-    indicia_api_log('Own account authenticated ' . $user->getIdentifier() . ' ' . $own);
-  }
-  return $own;
-}

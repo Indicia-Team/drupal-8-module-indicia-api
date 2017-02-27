@@ -63,23 +63,3 @@ function return_users_details($user_full, $fullDetails = FALSE) {
   drupal_json_output($output);
   indicia_api_log(print_r($output, 1));
 }
-
-
-function ownAuthenticated($user) {
-  if (empty($_SERVER['PHP_AUTH_USER'])){
-    return FALSE;
-  }
-
-  // Allow to update own user record only.
-  if(filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL) &&
-    $_SERVER['PHP_AUTH_USER'] === $user->mail->value()) {
-    // Email.
-    return TRUE;
-  }
-  elseif ($_SERVER['PHP_AUTH_USER'] === $user->name->value()) {
-    // Name.
-    return TRUE;
-  }
-
-  return FALSE;
-}

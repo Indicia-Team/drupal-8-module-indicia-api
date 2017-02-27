@@ -457,3 +457,44 @@ function error_print($code, $status, $title, $errors = NULL) {
     indicia_api_log(print_r($errors, 1), NULL, WATCHDOG_ERROR);
   }
 }
+
+
+// Allow to update own user record only.
+function ownAuthenticated($user, $silent = FALSE) {
+  $own = FALSE;
+
+  if (empty($_SERVER['PHP_AUTH_USER'])){
+    $own = FALSE;
+  }
+  else {
+    if (filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
+      // Email.
+      if ($_SERVER['PHP_AUTH_USER'] === $user->mail->value()) {
+        $own = TRUE;
+      }
+      if (!$silent) {
+        indicia_api_log(
+          'Own account authenticated (email) ' .
+          $user->mail->value() . ' ' .
+          ($own ? 'TRUE' : 'FALSE')
+        );
+      }
+    }
+    else {
+      if ($_SERVER['PHP_AUTH_USER'] === $user->name->value()) {
+        // Name.
+        $own = TRUE;
+      }
+
+      if (!$silent) {
+        indicia_api_log(
+          'Own account authenticated (name) ' .
+          $user->name->value() . ' ' .
+          ($own ? 'TRUE' : 'FALSE')
+        );
+      }
+    }
+  }
+
+  return $own;
+}
