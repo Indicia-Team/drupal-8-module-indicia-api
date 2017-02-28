@@ -26,9 +26,9 @@ function samples_create() {
   $processed = process_parameters($submission, $connection);
 
   // Check for duplicates.
-//  if (has_duplicates($processed['model'])) {
-//    return;
-//  }
+  if (has_duplicates($processed['model'])) {
+    return;
+  }
 
   // Send record to indicia.
   $response = forward_post_to('save', $processed['model'], $processed['files'], $auth['write_tokens']);
@@ -84,7 +84,7 @@ function process_parameters($submission, $connection) {
         'model' => $processed['model'],
       ]);
       if (!empty($processed['files'])) {
-        array_merge($files, $processed['files']);
+        $files = array_merge($files, $processed['files']);
       }
     }
   }
@@ -97,7 +97,7 @@ function process_parameters($submission, $connection) {
         'model' => $processed['model'],
       ]);
       if (!empty($processed['files'])) {
-        array_merge($files, $processed['files']);
+        $files = array_merge($files, $processed['files']);
       }
     }
   }
@@ -217,9 +217,9 @@ function has_duplicates($submission) {
       // because this could be a subsample occurrence
       array_push($errors, [
         'status' => '409',
-        'id' => $duplicate['id'],
+        'id' => (int) $duplicate['id'],
         'external_key' => $duplicate['external_key'],
-        'sample_id' => $duplicate['sample_id'],
+        'sample_id' => (int) $duplicate['sample_id'],
         'sample_external_key' => $submission['fields']['external_key']['value'],
         'title' => 'Occurrence already exists.',
       ]);
