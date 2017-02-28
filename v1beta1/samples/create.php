@@ -144,7 +144,9 @@ function process_occurrence_parameters($submission, $connection) {
 
   $model['fields']['website_id'] = ['value' => $connection['website_id']];
   if (isset($submission['training'])) {
-    $model['fields']['zero_abundance'] = ['training' => $submission['training']];
+    $model['fields']['training'] = [
+      'value' => ($submission['training'] ? 't' : 'f'),
+    ];
   }
 
   $model['fields']['zero_abundance'] = ['value' => 'f'];
