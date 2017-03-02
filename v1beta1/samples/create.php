@@ -109,7 +109,7 @@ function process_parameters($submission, $connection) {
         'fkId' => 'sample_id',
         'model' => $processed['model'],
       ]);
-      if (!empty($processed['files'])) {
+      if (!empty($processed['file'])) {
         array_push($files, $processed['file']);
       }
     }
