@@ -250,16 +250,18 @@ function find_duplicates($submission) {
   $duplicates = [];
   if (isset($submission['subModels']) && is_array($submission['subModels'])) {
     foreach ($submission['subModels'] as $occurrence) {
-      $existing = data_entry_helper::get_population_data(array(
-        'table' => 'occurrence',
-        'extraParams' => array_merge($auth, [
-          'view' => 'detail',
-          'external_key' => $occurrence['model']['fields']['external_key']['value'],
-        ]),
-        // Forces a load from the db rather than local cache.
-        'nocache' => TRUE,
-      ));
-      $duplicates = array_merge($duplicates, $existing);
+      if (isset($occurrence['model']['fields']['external_key']['value'])) {
+        $existing = data_entry_helper::get_population_data(array(
+          'table' => 'occurrence',
+          'extraParams' => array_merge($auth, [
+            'view' => 'detail',
+            'external_key' => $occurrence['model']['fields']['external_key']['value'],
+          ]),
+          // Forces a load from the db rather than local cache.
+          'nocache' => TRUE,
+        ));
+        $duplicates = array_merge($duplicates, $existing);
+      }
     }
   }
   return $duplicates;
