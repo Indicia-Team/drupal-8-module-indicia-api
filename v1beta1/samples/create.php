@@ -68,11 +68,11 @@ function process_parameters($submission, $connection) {
   $model['fields']['website_id'] = ['value' => $connection['website_id']];
   $model['fields']['survey_id'] = ['value' => $submission['survey_id']];
 
-  if ($submission['external_key']) {
+  if (isset($submission['external_key'])) {
     $model['fields']['external_key'] = ['value' => $submission['external_key']];
   }
 
-  if ($submission['input_form']) {
+  if (isset($submission['input_form'])) {
     $model['fields']['input_form'] = ['value' => $submission['input_form']];
   }
 
@@ -310,17 +310,17 @@ function validate_samples_create_request($submission) {
 }
 
 function validate_sample($model) {
-  if (!$model['fields']['date']) {
+  if (!isset($model['fields']['date'])) {
     error_print(400, 'Bad Request', 'Missing sample date.');
 
     return FALSE;
   }
-  if (!$model['fields']['entered_sref']) {
+  if (!isset($model['fields']['entered_sref'])) {
     error_print(400, 'Bad Request', 'Missing sample entered_sref.');
 
     return FALSE;
   }
-  if (!$model['fields']['entered_sref_system']) {
+  if (!isset($model['fields']['entered_sref_system'])) {
     error_print(400, 'Bad Request', 'Missing sample entered_sref_system.');
 
     return FALSE;
@@ -354,7 +354,7 @@ function validate_sample($model) {
 }
 
 function validate_occurrence($model) {
-  if (!$model['fields']['taxa_taxon_list_id']) {
+  if (!isset($model['fields']['taxa_taxon_list_id'])) {
     error_print(400, 'Bad Request', 'Missing occurrence taxa_taxon_list_id.');
 
     return FALSE;
@@ -372,13 +372,13 @@ function validate_occurrence($model) {
 
 
 function validate_media($model) {
-  if (!$model['name']) {
+  if (!isset($model['name'])) {
     error_print(400, 'Bad Request', 'Missing media name.');
 
     return FALSE;
   }
 
-  if (!$_FILES[$model['name']]) {
+  if (!isset($_FILES[$model['name']])) {
     error_print(400, 'Bad Request', 'Missing media.');
 
     return FALSE;
