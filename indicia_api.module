@@ -79,7 +79,7 @@ function indicia_api_menu() {
     'title' => 'Users',
     'page callback' => 'indicia_api_user',
     'access callback' => TRUE,
-    'page arguments' => array(3, 5),
+    'page arguments' => array(3, 4),
     'file' => API_VERSION . '/users/user/entry.inc',
   );
   /* TODO: support all reports resource. */
