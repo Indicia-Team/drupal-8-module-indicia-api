@@ -65,6 +65,7 @@ function process_parameters($submission, $connection) {
     ];
   }
 
+  // These must be set later than the rest of the fields for security.
   $model['fields']['website_id'] = ['value' => $connection['website_id']];
   $model['fields']['survey_id'] = ['value' => $submission['survey_id']];
 
@@ -142,6 +143,7 @@ function process_occurrence_parameters($submission, $connection) {
     }
   }
 
+  // These must be set later than the rest of the fields for security.
   $model['fields']['website_id'] = ['value' => $connection['website_id']];
   if (isset($submission['training'])) {
     $model['fields']['training'] = [
@@ -150,7 +152,17 @@ function process_occurrence_parameters($submission, $connection) {
   }
 
   $model['fields']['zero_abundance'] = ['value' => 'f'];
-  $model['fields']['record_status'] = ['value' => 'C'];
+  // Mark the record complete by default.
+  if (isset($submission['record_status'])) {
+    $model['fields']['record_status'] = ['value' => $submission['record_status']];
+  }
+  else {
+    $model['fields']['record_status'] = ['value' => 'C'];
+  }
+
+  if (isset($submission['release_status'])) {
+    $model['fields']['release_status'] = ['value' => $submission['release_status']];
+  }
 
   if (isset($submission['external_key'])) {
     $model['fields']['external_key'] = ['value' => $submission['external_key']];
