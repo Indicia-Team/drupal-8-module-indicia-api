@@ -4,4 +4,4 @@ package = "Indicia"
 core = 7.x
 dependencies[] = iform
 dependencies[] = entity
-version = "7.x-0.1"
+version = "7.x-1.0"

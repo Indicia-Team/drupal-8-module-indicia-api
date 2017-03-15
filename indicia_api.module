@@ -15,14 +15,17 @@
 const CONFIG_PATH = 'admin/config/iform/api';
 
 const API_BASE = 'api';
-const API_VERSION = 'v1beta1';
+const API_VERSION = 'v1';
+
+const API_PATH = API_BASE . '/' . API_VERSION;
+
 
 /**
  * Setup the profile fields.
  */
 const FIRSTNAME_FIELD = 'field_first_name';
 const SECONDNAME_FIELD = 'field_last_name';
-const CONFIRMATION_FIELD = 'field_confirmation_code';
+const ACTIVATION_FIELD = 'field_activation_token';
 const INDICIA_ID_FIELD = 'field_indicia_user_id';
 
 
@@ -56,9 +59,7 @@ if (module_exists('iform')) {
 function indicia_api_menu() {
   $items = array();
 
-  $api_path = API_BASE . '/' . API_VERSION;
-
-  $items["$api_path/samples"] = array(
+  $items[API_PATH . "/samples"] = array(
     'title' => 'Samples',
     'page callback' => 'indicia_api_samples',
     'access callback' => TRUE,
@@ -67,24 +68,23 @@ function indicia_api_menu() {
 
   /* TODO: support single sample resource. */
 
-  $items["$api_path/users"] = array(
+  $items[API_PATH . "/users"] = array(
     'title' => 'Users',
     'page callback' => 'indicia_api_users',
     'access callback' => TRUE,
     'file' => API_VERSION . '/users/entry.inc',
   );
 
-  $items["$api_path/users/%"] = array(
+  $items[API_PATH . "/users/%"] = array(
     'title' => 'Users',
     'page callback' => 'indicia_api_user',
     'access callback' => TRUE,
-    'page arguments' => array(3),
+    'page arguments' => array(3, 5),
     'file' => API_VERSION . '/users/user/entry.inc',
   );
-
   /* TODO: support all reports resource. */
 
-  $items["$api_path/reports/%"] = array(
+  $items[API_PATH . "/reports/%"] = array(
     'title' => 'Reports',
     'page callback' => 'indicia_api_report',
     'access callback' => TRUE,
@@ -177,14 +177,13 @@ function indicia_api_key_load($id = NULL) {
 function indicia_api_authorise_key() {
   $request = drupal_static('request');
 
-  $key = $request['api_key'];
-  if (empty($key)) {
+  if (!isset($request['api_key']) || empty($request['api_key'])) {
     return FALSE;
   }
 
   $result = db_query(
     "SELECT * FROM {indicia_api} WHERE api_key = :key",
-    array(':key' => $key));
+    array(':key' => $request['api_key']));
 
   $result_array = $result->fetchAll();
 
@@ -497,4 +496,26 @@ function ownAuthenticated($user, $silent = FALSE) {
   }
 
   return $own;
+}
+
+
+/**
+ * Implements hook_mail().
+ */
+function indicia_api_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'register':
+      global $base_url;
+      $path = $base_url . '/' . API_PATH;
+      $activation_url = "$path/users/{$params['uid']}/activate?" .
+        "activationToken={$params['activation_token']}" .
+      "&api_key={$params['api_key']}";
+      $subject = variable_get('indicia_api_registration_subject', "Welcome to !site");
+      $body = variable_get('indicia_api_registration_body',
+        "Activate your account by visiting the following page in your web browser: !activation_url");
+
+      $message['subject'] = t($subject, array("!site" => variable_get('site_name', "Indicia")));
+      $message['body'][] = t($body, array("!activation_url" => $activation_url));
+      break;
+  }
 }

@@ -2,8 +2,9 @@
 
 require 'get.php';
 require 'update_.php';
+require 'activate.php';
 
-function indicia_api_user($uid = NULL) {
+function indicia_api_user($uid = NULL, $activate = FALSE) {
   drupal_add_http_header('Access-Control-Allow-Origin', "*");
   drupal_add_http_header('Access-Control-Allow-Methods', 'GET,PUT,OPTIONS');
   drupal_add_http_header('Access-Control-Allow-Headers', 'Authorization');
@@ -12,6 +13,15 @@ function indicia_api_user($uid = NULL) {
     case 'GET':
       $request = $_GET;
       drupal_static('request', $request);
+
+      if ($activate) {
+        indicia_api_log('[User activate]');
+        indicia_api_log(print_r($request, 1));
+
+        // Only supports password reset at the moment.
+        user_activate(load_user($uid));
+        return;
+      }
 
       indicia_api_log('[User get]');
       indicia_api_log(print_r($request, 1));

@@ -84,7 +84,7 @@ function create_new_user() {
   $password = $request['password'];
 
   // Generate the user confirmation code returned via email.
-  $confirmation_code = indicia_api_generate_random_string(20);
+  $activation_token = indicia_api_generate_random_string(20);
 
   // Look up indicia id. No need to send cms_id as this is a new user so they
   // cannot have any old records under this id to merge.
@@ -101,7 +101,7 @@ function create_new_user() {
   );
   $user_details[FIRSTNAME_FIELD][LANGUAGE_NONE][0]['value'] = $firstname;
   $user_details[SECONDNAME_FIELD][LANGUAGE_NONE][0]['value'] = $secondname;
-  $user_details[CONFIRMATION_FIELD][LANGUAGE_NONE][0]['value'] = $confirmation_code;
+  $user_details[ACTIVATION_FIELD][LANGUAGE_NONE][0]['value'] = $activation_token;
   $user_details[INDICIA_ID_FIELD][LANGUAGE_NONE][0]['value'] = $indicia_user_id;
 
   $new_user = user_save(NULL, $user_details);
@@ -111,10 +111,12 @@ function create_new_user() {
 
 function send_activation_email($new_user) {
   indicia_api_log('Sending activation email to ' . $new_user->mail->value());
+  $request = drupal_static('request');
 
   $params = [
+    'api_key' => $request['api_key'],
     'uid' => $new_user->getIdentifier(),
-    'confirmation_code' => $new_user->{CONFIRMATION_FIELD}->value(),
+    'activation_token' => $new_user->{ACTIVATION_FIELD}->value(),
   ];
   drupal_mail('indicia_api',
     'register',

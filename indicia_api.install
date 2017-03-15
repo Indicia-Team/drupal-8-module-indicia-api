@@ -107,10 +107,10 @@ function indicia_api_install() {
       'name' => 'field_last_name',
       'required' => TRUE,
     ),
-    'field_confirmation_code' => (object) array(
+    'field_activation_token' => (object) array(
       'type' => 'text',
       'title' => 'One-time login code for mobile registered user',
-      'name' => 'field_confirmation_code',
+      'name' => 'field_activation_token',
     ),
   );
 
