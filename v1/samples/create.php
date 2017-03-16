@@ -152,16 +152,24 @@ function process_occurrence_parameters($submission, $connection) {
   }
 
   $model['fields']['zero_abundance'] = ['value' => 'f'];
-  // Mark the record complete by default.
   if (isset($submission['record_status'])) {
     $model['fields']['record_status'] = ['value' => $submission['record_status']];
   }
   else {
+    // Mark the record complete by default.
     $model['fields']['record_status'] = ['value' => 'C'];
   }
 
   if (isset($submission['release_status'])) {
     $model['fields']['release_status'] = ['value' => $submission['release_status']];
+  }
+
+  if (isset($submission['sensitive'])) {
+    $model['fields']['sensitive'] = ['value' => $submission['sensitive']];
+  }
+
+  if (isset($submission['sensitivity_precision'])) {
+    $model['fields']['sensitivity_precision'] = ['value' => $submission['sensitivity_precision']];
   }
 
   if (isset($submission['external_key'])) {
