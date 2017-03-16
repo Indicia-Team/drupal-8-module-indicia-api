@@ -208,12 +208,13 @@ function indicia_api_authorise_key() {
  *   Drupal user object, or FALSE if not authorised.
  */
 function indicia_api_authorise_user() {
+  if (!isset($_SERVER['PHP_AUTH_USER']) || !isset($_SERVER['PHP_AUTH_USER'])) {
+    return FALSE;
+  }
+
   $name = $_SERVER['PHP_AUTH_USER'];
   $password = $_SERVER['PHP_AUTH_PW'];
 
-  if (empty($name) || empty($password)) {
-    return FALSE;
-  }
   require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
 
   $existing_user = NULL;

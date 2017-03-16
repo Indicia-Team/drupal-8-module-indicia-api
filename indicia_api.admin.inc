@@ -40,6 +40,7 @@ function indicia_api_key($form, &$form_state, $keys = NULL) {
     $key['title'] = '';
     $key['description'] = '';
     $key['api_key'] = indicia_api_generate_random_string(40);
+    $key['anonymous_user'] = 0;
   }
 
   // Build form.
@@ -80,6 +81,15 @@ function indicia_api_key($form, &$form_state, $keys = NULL) {
     '#description' => t('Set the API key to be used for authentication.'),
     '#required' => TRUE,
   );
+
+  $form['anonymous_user'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Anonymous user ID'),
+    '#default_value' => $key['anonymous_user'],
+    '#description' => t('Set a user ID to allow anonymous record submissions.'),
+    '#required' => FALSE,
+  );
+
 
   if (!empty($key['id'])) {
     // Editing existing key.

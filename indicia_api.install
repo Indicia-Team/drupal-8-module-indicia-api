@@ -53,6 +53,13 @@ function indicia_api_schema() {
         'length' => 60,
         'not null' => TRUE,
       ),
+      'anonymous_user' => array(
+        'description' => 'Anonymous user ID.',
+        'type' => 'int',
+        'length' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
       'created_by' => array(
         'description' => 'User id that created the key.',
         'type' => 'int',
