@@ -334,7 +334,7 @@ function validate_samples_create_request($submission) {
 function authorise_anonymous() {
   $request = drupal_static('request');
 
-  if (!isset($request['anonymous']) || !is_numeric($request['anonymous'])) {
+  if (!isset($request['anonymous'])) {
     return FALSE;
   }
 
@@ -354,9 +354,6 @@ function authorise_anonymous() {
   }
 
   $anonymous_user_id = $result_array[0]->anonymous_user;
-  if ($anonymous_user_id != $request['anonymous']) {
-    return FALSE;
-  }
 
   // Find user.
   $existing_user = user_load($anonymous_user_id);
