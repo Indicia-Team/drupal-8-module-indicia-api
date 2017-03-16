@@ -350,6 +350,8 @@ function authorise_anonymous() {
   }
 
   if (!is_numeric($result_array[0]->anonymous_user)) {
+    indicia_api_log('Provided anonymous user ID is not numeric.',
+      NULL, WATCHDOG_ERROR);
     return FALSE;
   }
 
@@ -359,8 +361,12 @@ function authorise_anonymous() {
   $existing_user = user_load($anonymous_user_id);
 
   if (empty($existing_user)) {
+    indicia_api_log('Not found anonymous user with ID ' . $anonymous_user_id . '.',
+      NULL, WATCHDOG_ERROR);
     return FALSE;
   }
+
+  indicia_api_log('Found anonymous user with ID ' . $anonymous_user_id . '.');
 
   // Assign this user to gobal user var so that it can be added to the indicia
   // submission.
