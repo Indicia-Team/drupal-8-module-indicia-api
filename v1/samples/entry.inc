@@ -9,17 +9,18 @@ function indicia_api_samples() {
 
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'POST':
+      indicia_api_log('[Samples create]');
+
       $request = json_decode(file_get_contents('php://input'), TRUE);
 
       // Support form-data with files attached.
       if (empty($request) && !empty($_POST['submission'])) {
+        indicia_api_log('Using POST');
         $submission = json_decode($_POST['submission'], TRUE);
         $request = $submission;
       }
 
       drupal_static('request', $request);
-
-      indicia_api_log('[Samples create]');
       indicia_api_log(print_r($request, 1));
 
       samples_create();

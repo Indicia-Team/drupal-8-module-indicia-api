@@ -320,7 +320,7 @@ function validate_samples_create_request() {
   }
 
   if (!isset($request['data']['type']) || $request['data']['type'] != 'samples') {
-    error_print(400, 'Bad Request', 'Resource of type users not found.');
+    error_print(400, 'Bad Request', 'Resource of type samples not found.');
 
     return FALSE;
   }
