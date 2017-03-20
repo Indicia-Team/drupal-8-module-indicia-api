@@ -30,6 +30,12 @@ function validate_user_update_request($user) {
     return FALSE;
   }
 
+  if (!isset($request['data']['type']) || $request['data']['type'] != 'users') {
+    error_print(400, 'Bad Request', 'Resource of type users not found.');
+
+    return FALSE;
+  }
+
   // Check if password field is set for a reset.
   if (!isset($request['data']['password'])) {
     error_print(400, 'Bad Request', 'Nothing to process.');
