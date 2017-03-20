@@ -173,17 +173,21 @@ function indicia_api_key_load($id = NULL) {
  * Checks if the key matches any in the database.
  *
  * This function iterates through the list of key accounts from database table.
+ *
+ * Why key is in the header:
+ * http://www.bizcoder.com/where-oh-where-does-the-api-key-go
+ * http://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-api-keys.html
  */
 function indicia_api_authorise_key() {
-  $request = drupal_static('request');
-
-  if (!isset($request['api_key']) || empty($request['api_key'])) {
+  if (!isset($_SERVER['HTTP_X_API_KEY']) || empty($_SERVER['HTTP_X_API_KEY'])) {
     return FALSE;
   }
 
+  $key = $_SERVER['HTTP_X_API_KEY'];
+
   $result = db_query(
     "SELECT * FROM {indicia_api} WHERE api_key = :key",
-    array(':key' => $request['api_key']));
+    array(':key' => $key));
 
   $result_array = $result->fetchAll();
 
@@ -509,8 +513,7 @@ function indicia_api_mail($key, &$message, $params) {
       global $base_url;
       $path = $base_url . '/' . API_PATH;
       $activation_url = "$path/users/{$params['uid']}/activate?" .
-        "activationToken={$params['activation_token']}" .
-      "&api_key={$params['api_key']}";
+        "activationToken={$params['activation_token']}";
       $subject = variable_get('indicia_api_registration_subject', "Welcome to !site");
       $body = variable_get('indicia_api_registration_body',
         "Activate your account by visiting the following page in your web browser: !activation_url");

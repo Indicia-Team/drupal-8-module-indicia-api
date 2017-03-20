@@ -38,9 +38,17 @@ function validate_users_create_request() {
     return FALSE;
   }
 
+  if (!isset($request['data']['type']) || $request['data']['type'] != 'users') {
+    error_print(400, 'Bad Request', 'Resource of type users not found.');
+
+    return FALSE;
+  }
+
+  $data = $request['data'];
+
   // Check minimum valid parameters.
-  $firstname = $request['firstname'];
-  $secondname = $request['secondname'];
+  $firstname = $data['firstname'];
+  $secondname = $data['secondname'];
   if (empty($firstname) || empty($secondname)) {
     error_print(400, 'Bad Request', 'Invalid or missing user firstname or secondname.');
 
@@ -48,7 +56,7 @@ function validate_users_create_request() {
   }
 
   // Check email is valid.
-  $email = $request['email'];
+  $email = $data['email'];
   if (empty($email) || valid_email_address($email) != 1) {
     error_print(400, 'Bad Request', 'Invalid or missing name.');
 
@@ -56,7 +64,7 @@ function validate_users_create_request() {
   }
 
   // Apply a password strength requirement.
-  $password = $request['password'];
+  $password = $data['password'];
   if (empty($password) || indicia_api_validate_password($password) != 1) {
     error_print(400, 'Bad Request', 'Invalid or missing password.');
 
@@ -76,32 +84,30 @@ function validate_users_create_request() {
 
 function create_new_user() {
   $request = drupal_static('request');
+  $data = $request['data'];
 
-  // Pull out parameters from POST request.
-  $firstname = empty($request['firstname']) ? '' : $request['firstname'];
-  $secondname = empty($request['secondname']) ? '' : $request['secondname'];
-  $email = $request['email'];
-  $password = $request['password'];
+  $user_details = array(
+    'pass' => $data['password'], /* handles the (unsalted) hash process */
+    'name' => $data['email'],
+    'mail' => $data['email'],
+  );
+
+  $user_details[FIRSTNAME_FIELD][LANGUAGE_NONE][0]['value'] = $data['firstname'];
+  $user_details[SECONDNAME_FIELD][LANGUAGE_NONE][0]['value'] = $data['secondname'];
 
   // Generate the user confirmation code returned via email.
   $activation_token = indicia_api_generate_random_string(20);
+  $user_details[ACTIVATION_FIELD][LANGUAGE_NONE][0]['value'] = $activation_token;
 
   // Look up indicia id. No need to send cms_id as this is a new user so they
   // cannot have any old records under this id to merge.
-  $indicia_user_id = indicia_api_get_user_id($email, $firstname, $secondname);
-  // Handle indicia_api_get_user_id returning an error.
-  if (!is_int($indicia_user_id)) {
-    // todo.
-  }
-
-  $user_details = array(
-    'pass' => $password, /* handles the (unsalted) hash process */
-    'name' => $email,
-    'mail' => $email,
+  $indicia_user_id = indicia_api_get_user_id(
+    $data['email'],
+    $data['firstname'],
+    $data['secondname']
   );
-  $user_details[FIRSTNAME_FIELD][LANGUAGE_NONE][0]['value'] = $firstname;
-  $user_details[SECONDNAME_FIELD][LANGUAGE_NONE][0]['value'] = $secondname;
-  $user_details[ACTIVATION_FIELD][LANGUAGE_NONE][0]['value'] = $activation_token;
+  // Handle indicia_api_get_user_id returning an error.
+  if (!is_int($indicia_user_id)) {/* todo. */ }
   $user_details[INDICIA_ID_FIELD][LANGUAGE_NONE][0]['value'] = $indicia_user_id;
 
   $new_user = user_save(NULL, $user_details);
@@ -114,7 +120,6 @@ function send_activation_email($new_user) {
   $request = drupal_static('request');
 
   $params = [
-    'api_key' => $request['api_key'],
     'uid' => $new_user->getIdentifier(),
     'activation_token' => $new_user->{ACTIVATION_FIELD}->value(),
   ];

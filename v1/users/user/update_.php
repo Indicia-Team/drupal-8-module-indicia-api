@@ -31,7 +31,7 @@ function validate_user_update_request($user) {
   }
 
   // Check if password field is set for a reset.
-  if (!isset($request['password'])) {
+  if (!isset($request['data']['password'])) {
     error_print(400, 'Bad Request', 'Nothing to process.');
 
     return FALSE;

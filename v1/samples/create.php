@@ -6,8 +6,6 @@
 function samples_create() {
   $request = drupal_static('request');
 
-  $submission = json_decode($request['submission'], TRUE);
-
   if (!validate_samples_create_request($submission)) {
     return;
   }
@@ -164,6 +162,10 @@ function process_occurrence_parameters($submission, $connection) {
     $model['fields']['release_status'] = ['value' => $submission['release_status']];
   }
 
+  if (isset($submission['confidential'])) {
+    $model['fields']['confidential'] = ['value' => $submission['confidential']];
+  }
+
   if (isset($submission['sensitive'])) {
     $model['fields']['sensitive'] = ['value' => $submission['sensitive']];
   }
@@ -310,9 +312,16 @@ function validate_samples_create_request($submission) {
     return FALSE;
   }
 
+  if (!isset($request['data']['type']) || $request['data']['type'] != 'users') {
+    error_print(400, 'Bad Request', 'Resource of type users not found.');
+
+    return FALSE;
+  }
+
+
   $survey_id = intval($request['survey_id']);
   if ($survey_id == 0) {
-    error_print(400, 'Bad Request', 'Missing or incorrect survey_id.');
+    error_print(400, 'Bad Request', 'Missing or incorrect survey id.');
 
     return FALSE;
   }
@@ -332,16 +341,12 @@ function validate_samples_create_request($submission) {
 }
 
 function authorise_anonymous() {
-  $request = drupal_static('request');
-
-  if (!isset($request['anonymous'])) {
-    return FALSE;
-  }
+  $key = $_SERVER['HTTP_X_API_KEY'];
 
   // Check if matches API anonymous account.
   $result = db_query(
     "SELECT * FROM {indicia_api} WHERE api_key = :key",
-    array(':key' => $request['api_key']));
+    array(':key' => $key));
 
   $result_array = $result->fetchAll();
 
@@ -356,6 +361,12 @@ function authorise_anonymous() {
   }
 
   $anonymous_user_id = $result_array[0]->anonymous_user;
+
+  if ($anonymous_user_id == -1) {
+    indicia_api_log('Anonymous recording is not allowed.',
+      NULL, WATCHDOG_ERROR);
+    return FALSE;
+  }
 
   // Find user.
   $existing_user = user_load($anonymous_user_id);

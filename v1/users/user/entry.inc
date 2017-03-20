@@ -30,8 +30,7 @@ function indicia_api_user($uid = NULL, $activate = FALSE) {
       break;
 
     case 'PUT':
-      parse_str(file_get_contents('php://input'), $_PUT);
-      $request = $_PUT + $_GET;
+      $request = json_decode(file_get_contents('php://input'), TRUE);
       drupal_static('request', $request);
 
       indicia_api_log('[User update]');

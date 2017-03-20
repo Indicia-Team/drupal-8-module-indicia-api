@@ -34,17 +34,9 @@ function user_activate($user) {
   }
 }
 
-
+// No need to check API KEY because it is email authenticated.
 function validate_user_activate_request($user) {
   $request = drupal_static('request');
-
-  // Reject submissions with an incorrect secret (or instances where secret is
-  // not set).
-  if (!indicia_api_authorise_key()) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect API key.');
-
-    return FALSE;
-  }
 
   // Check if user with UID exists.
   if (!$user) {

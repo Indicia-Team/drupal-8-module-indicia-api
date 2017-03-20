@@ -10,7 +10,8 @@ function indicia_api_users() {
 
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'POST':
-      $request = $_GET + $_POST;
+      $request = json_decode(file_get_contents('php://input'), TRUE);
+
       drupal_static('request', $request);
 
       indicia_api_log('[Users create]');
@@ -20,7 +21,7 @@ function indicia_api_users() {
       break;
 
     case 'GET':
-      $request = $_GET + $_POST;
+      $request = $_GET;
       drupal_static('request', $request);
 
       indicia_api_log('[Users get]');
