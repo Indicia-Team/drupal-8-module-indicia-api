@@ -4,11 +4,12 @@
  * Samples POST request handler.
  */
 function samples_create() {
-  $request = drupal_static('request');
-
-  if (!validate_samples_create_request($submission)) {
+  if (!validate_samples_create_request()) {
     return;
   }
+
+  $request = drupal_static('request');
+  $data = $request['data'];
 
   // Get auth.
   try {
@@ -21,7 +22,7 @@ function samples_create() {
   }
 
   // Construct post parameter array.
-  $processed = process_parameters($submission, $connection);
+  $processed = process_parameters($data, $connection);
 
   // Check for duplicates.
   if (has_duplicates($processed['model'])) {
@@ -44,7 +45,7 @@ function samples_create() {
  * @return array
  *   Returns the new record model.
  */
-function process_parameters($submission, $connection) {
+function process_parameters($data, $connection) {
   $model = [
     "id" => "sample",
     "fields" => [],
@@ -53,7 +54,7 @@ function process_parameters($submission, $connection) {
 
   $files = []; // Files for submission.
 
-  foreach ($submission['fields'] as $key => $field) {
+  foreach ($data['fields'] as $key => $field) {
     $field_key = $key;
     if (($int_key = intval($key)) > 0) {
       $field_key = 'smpAttr:' . $int_key;
@@ -65,18 +66,18 @@ function process_parameters($submission, $connection) {
 
   // These must be set later than the rest of the fields for security.
   $model['fields']['website_id'] = ['value' => $connection['website_id']];
-  $model['fields']['survey_id'] = ['value' => $submission['survey_id']];
+  $model['fields']['survey_id'] = ['value' => $data['survey_id']];
 
-  if (isset($submission['external_key'])) {
-    $model['fields']['external_key'] = ['value' => $submission['external_key']];
+  if (isset($data['external_key'])) {
+    $model['fields']['external_key'] = ['value' => $data['external_key']];
   }
 
-  if (isset($submission['input_form'])) {
-    $model['fields']['input_form'] = ['value' => $submission['input_form']];
+  if (isset($data['input_form'])) {
+    $model['fields']['input_form'] = ['value' => $data['input_form']];
   }
 
-  if (isset($submission['samples']) && is_array($submission['samples'])) {
-    foreach ($submission['samples'] as $sample) {
+  if (isset($data['samples']) && is_array($data['samples'])) {
+    foreach ($data['samples'] as $sample) {
       $processed = process_parameters($sample, $connection);
       array_push($model['subModels'], [
         'fkId' => 'sample_id',
@@ -88,8 +89,8 @@ function process_parameters($submission, $connection) {
     }
   }
 
-  if (isset($submission['occurrences']) && is_array($submission['occurrences'])) {
-    foreach ($submission['occurrences'] as $occurrence) {
+  if (isset($data['occurrences']) && is_array($data['occurrences'])) {
+    foreach ($data['occurrences'] as $occurrence) {
       $processed = process_occurrence_parameters($occurrence, $connection);
       array_push($model['subModels'], [
         'fkId' => 'sample_id',
@@ -101,8 +102,8 @@ function process_parameters($submission, $connection) {
     }
   }
 
-  if (isset($submission['media']) && is_array($submission['media'])) {
-    foreach ($submission['media'] as $media) {
+  if (isset($data['media']) && is_array($data['media'])) {
+    foreach ($data['media'] as $media) {
       $processed = process_media_parameters($media, FALSE);
       array_push($model['subModels'], [
         'fkId' => 'sample_id',
@@ -114,13 +115,13 @@ function process_parameters($submission, $connection) {
     }
   }
   indicia_api_log('Processed sample parameters.');
-  indicia_api_log(print_r($submission, 1));
+  indicia_api_log(print_r($data, 1));
   indicia_api_log(print_r($model, 1));
   indicia_api_log(print_r($files, 1));
   return [ 'model' => $model, 'files' => $files];
 }
 
-function process_occurrence_parameters($submission, $connection) {
+function process_occurrence_parameters($data, $connection) {
   $model = [
     "id" => "occurrence",
     "fields" => [],
@@ -129,8 +130,8 @@ function process_occurrence_parameters($submission, $connection) {
 
   $files = []; // Files for submission.
 
-  if (isset($submission['fields']) && is_array($submission['fields'])) {
-    foreach ($submission['fields'] as $key => $field) {
+  if (isset($data['fields']) && is_array($data['fields'])) {
+    foreach ($data['fields'] as $key => $field) {
       $field_key = $key;
       if (($int_key = intval($key)) > 0) {
         $field_key = 'occAttr:' . $int_key;
@@ -143,43 +144,43 @@ function process_occurrence_parameters($submission, $connection) {
 
   // These must be set later than the rest of the fields for security.
   $model['fields']['website_id'] = ['value' => $connection['website_id']];
-  if (isset($submission['training'])) {
+  if (isset($data['training'])) {
     $model['fields']['training'] = [
-      'value' => ($submission['training'] ? 't' : 'f'),
+      'value' => ($data['training'] ? 't' : 'f'),
     ];
   }
 
   $model['fields']['zero_abundance'] = ['value' => 'f'];
-  if (isset($submission['record_status'])) {
-    $model['fields']['record_status'] = ['value' => $submission['record_status']];
+  if (isset($data['record_status'])) {
+    $model['fields']['record_status'] = ['value' => $data['record_status']];
   }
   else {
     // Mark the record complete by default.
     $model['fields']['record_status'] = ['value' => 'C'];
   }
 
-  if (isset($submission['release_status'])) {
-    $model['fields']['release_status'] = ['value' => $submission['release_status']];
+  if (isset($data['release_status'])) {
+    $model['fields']['release_status'] = ['value' => $data['release_status']];
   }
 
-  if (isset($submission['confidential'])) {
-    $model['fields']['confidential'] = ['value' => $submission['confidential']];
+  if (isset($data['confidential'])) {
+    $model['fields']['confidential'] = ['value' => $data['confidential']];
   }
 
-  if (isset($submission['sensitive'])) {
-    $model['fields']['sensitive'] = ['value' => $submission['sensitive']];
+  if (isset($data['sensitive'])) {
+    $model['fields']['sensitive'] = ['value' => $data['sensitive']];
   }
 
-  if (isset($submission['sensitivity_precision'])) {
-    $model['fields']['sensitivity_precision'] = ['value' => $submission['sensitivity_precision']];
+  if (isset($data['sensitivity_precision'])) {
+    $model['fields']['sensitivity_precision'] = ['value' => $data['sensitivity_precision']];
   }
 
-  if (isset($submission['external_key'])) {
-    $model['fields']['external_key'] = ['value' => $submission['external_key']];
+  if (isset($data['external_key'])) {
+    $model['fields']['external_key'] = ['value' => $data['external_key']];
   }
 
-  if (isset($submission['media']) && is_array($submission['media'])) {
-    foreach ($submission['media'] as $media) {
+  if (isset($data['media']) && is_array($data['media'])) {
+    foreach ($data['media'] as $media) {
       $processed = process_media_parameters($media);
       array_push($model['subModels'], [
         'fkId' => 'occurrence_id',
@@ -192,20 +193,20 @@ function process_occurrence_parameters($submission, $connection) {
   }
 
   indicia_api_log('Processed occurrence parameters.');
-  indicia_api_log(print_r($submission, 1));
+  indicia_api_log(print_r($data, 1));
   indicia_api_log(print_r($model, 1));
   return [ 'model' => $model, 'files' => $files];
 }
 
 
-function process_media_parameters($submission, $occurrence = TRUE) {
+function process_media_parameters($data, $occurrence = TRUE) {
   $model = [
     "id" => $occurrence ? "occurrence_medium" : 'sample_medium',
     "fields" => [],
   ];
 
   // Generate new name.
-  $file = $_FILES[$submission['name']];
+  $file = $_FILES[$data['name']];
   $ext = $file['type'] === 'image/png' ? '.png' : '.jpg';
   $newName = bin2hex(openssl_random_pseudo_bytes(20)) . $ext;
 
@@ -214,7 +215,7 @@ function process_media_parameters($submission, $occurrence = TRUE) {
   $model['fields']['path'] = ['value' => $newName];
 
   indicia_api_log('Processed media parameters.');
-  indicia_api_log(print_r($submission, 1));
+  indicia_api_log(print_r($data, 1));
   indicia_api_log(print_r($model, 1));
   return [ 'model' => $model, 'file' => $file];
 }
@@ -224,7 +225,7 @@ function process_media_parameters($submission, $occurrence = TRUE) {
  *
  * Does that based on their external keys in the warehouse.
  *
- * @param array $submission
+ * @param array $data
  *   The record model.
  *
  * @return bool
@@ -259,7 +260,7 @@ function has_duplicates($submission) {
 /**
  * Finds duplicates in the warehouse.
  *
- * @param array $submission
+ * @param array $data
  *   Record model.
  *
  * @return array
@@ -295,7 +296,7 @@ function find_duplicates($submission) {
  * @return bool
  *   True if the request is valid
  */
-function validate_samples_create_request($submission) {
+function validate_samples_create_request() {
   $request = drupal_static('request');
 
   // Reject submissions with an incorrect secret (or instances where secret is
@@ -306,34 +307,33 @@ function validate_samples_create_request($submission) {
     return FALSE;
   }
 
+  if (empty($request) || !isset($request['data'])) {
+    error_print(400, 'Bad Request', 'Missing or invalid submission.');
+
+    return FALSE;
+  }
+
   if (!indicia_api_authorise_user() && !authorise_anonymous()) {
     error_print(400, 'Bad Request', 'Could not find/authenticate user.');
 
     return FALSE;
   }
 
-  if (!isset($request['data']['type']) || $request['data']['type'] != 'users') {
+  if (!isset($request['data']['type']) || $request['data']['type'] != 'samples') {
     error_print(400, 'Bad Request', 'Resource of type users not found.');
 
     return FALSE;
   }
 
 
-  $survey_id = intval($request['survey_id']);
-  if ($survey_id == 0) {
+  if (!isset($request['data']['survey_id'])) {
     error_print(400, 'Bad Request', 'Missing or incorrect survey id.');
 
     return FALSE;
   }
 
-  if (empty($submission)) {
-    error_print(400, 'Bad Request', 'Missing or invalid submission.');
-
-    return FALSE;
-  }
-
   // Validate sample.
-  if (!validate_sample($submission)) {
+  if (!validate_sample($request['data'])) {
     return FALSE;
   }
 
