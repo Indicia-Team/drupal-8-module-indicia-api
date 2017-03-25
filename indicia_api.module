@@ -1,0 +1,525 @@
+<?php
+
+/**
+ * @file
+ * Iform Mobile Authentication Module's Core functionality.
+ *
+ * API design guidelines:
+ * https://cloud.google.com/apis/design/
+ *
+ * JSON API
+ * http://jsonapi.org/format/
+ */
+
+// Module configuration's URL path.
+const CONFIG_PATH = 'admin/config/iform/api';
+
+const API_BASE = 'api';
+const API_VERSION = 'v1';
+
+const API_PATH = API_BASE . '/' . API_VERSION;
+
+
+/**
+ * Setup the profile fields.
+ */
+const FIRSTNAME_FIELD = 'field_first_name';
+const SECONDNAME_FIELD = 'field_last_name';
+const ACTIVATION_FIELD = 'field_activation_token';
+const INDICIA_ID_FIELD = 'field_indicia_user_id';
+
+
+/**
+ * Implements hook_permission().
+ */
+function indicia_api_permission() {
+  return array(
+    'admin mobile auth' => array(
+      'title' => t('View the administrative dashbord'),
+      'description' => t('Allows to reach the administrative dashboard and so manage it.'),
+    ),
+    'user mobile auth' => array(
+      'title' => t('View personal dashboard'),
+      'description' => t('View personal Indicia API dashboard, to manage personal assigned information.'),
+    ),
+  );
+}
+
+
+/*
+ * Submit the relevant information to indicia
+ */
+if (module_exists('iform')) {
+  iform_load_helpers(array('data_entry_helper'));
+}
+
+/**
+ * Implements hook_menu().
+ */
+function indicia_api_menu() {
+  $items = array();
+
+  $items[API_PATH . "/samples"] = array(
+    'title' => 'Samples',
+    'page callback' => 'indicia_api_samples',
+    'access callback' => TRUE,
+    'file' => API_VERSION . '/samples/entry.inc',
+  );
+
+  /* TODO: support single sample resource. */
+
+  $items[API_PATH . "/users"] = array(
+    'title' => 'Users',
+    'page callback' => 'indicia_api_users',
+    'access callback' => TRUE,
+    'file' => API_VERSION . '/users/entry.inc',
+  );
+
+  $items[API_PATH . "/users/%"] = array(
+    'title' => 'Users',
+    'page callback' => 'indicia_api_user',
+    'access callback' => TRUE,
+    'page arguments' => array(3, 4),
+    'file' => API_VERSION . '/users/user/entry.inc',
+  );
+  /* TODO: support all reports resource. */
+
+  $items[API_PATH . "/reports/%"] = array(
+    'title' => 'Reports',
+    'page callback' => 'indicia_api_report',
+    'access callback' => TRUE,
+    'page arguments' => array(1),
+    'file' => API_VERSION . '/reports/report/entry.inc',
+  );
+
+  // User Interface options.
+  // Dashboard.
+  $items[CONFIG_PATH] = array(
+    'title' => 'Indicia API',
+    'description' => 'Configure variables relating to the mobile authorisation module',
+    'page callback' => 'indicia_api_dashboard',
+    'access arguments' => array('user mobile auth'),
+    'file' => 'indicia_api.admin.inc',
+  );
+  // Add.
+  $items[CONFIG_PATH . '/add'] = array(
+    'title' => 'Indicia API',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('indicia_api_key'),
+    'access arguments' => array('user mobile auth'),
+    'file' => 'indicia_api.admin.inc',
+    'type' => MENU_CALLBACK,
+  );
+  // Edit.
+  $items[CONFIG_PATH . '/%indicia_api_key'] = array(
+    'title' => 'key settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('indicia_api_key', 4),
+    'access arguments' => array('user mobile auth'),
+    'file' => 'indicia_api.admin.inc',
+    'type' => MENU_CALLBACK,
+  );
+  // Delete.
+  $items[CONFIG_PATH . '/delete/%indicia_api_key'] = array(
+    'title' => 'Delete key',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('indicia_api_delete', 5),
+    'access arguments' => array('user mobile auth'),
+    'file' => 'indicia_api.admin.inc',
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Checks if the user is allowed to see a saved key account.
+ *
+ * @param array $key
+ *   An array containing details of an key account.
+ *
+ * @return bool
+ *   TRUE if user has the 'admin moobile auth permission' or they created the
+ *   key.
+ */
+function indicia_api_user_has_permission($key = NULL) {
+  global $user;
+  return user_access('admin mobile auth') || (!is_null($key) && $key['created_by'] === $user->uid);
+}
+
+/**
+ * Implements hook_load().
+ */
+function indicia_api_key_load($id = NULL) {
+  if ($id) {
+    // Get specific key account.
+    $results = db_query("SELECT * FROM {indicia_api}
+      WHERE id = :id ORDER BY title", array(':id' => $id));
+  }
+  else {
+    // All accounts.
+    $results = db_query("SELECT * FROM {indicia_api} ORDER BY title");
+  }
+
+  // Transform an array of keys.
+  $keys = array();
+  foreach ($results as $key) {
+    $keys[] = (array) $key;
+  }
+
+  return $keys;
+}
+
+/**
+ * Checks if the key matches any in the database.
+ *
+ * This function iterates through the list of key accounts from database table.
+ *
+ * Why key is in the header:
+ * http://www.bizcoder.com/where-oh-where-does-the-api-key-go
+ * http://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-api-keys.html
+ */
+function indicia_api_authorise_key() {
+  if (!isset($_SERVER['HTTP_X_API_KEY']) || empty($_SERVER['HTTP_X_API_KEY'])) {
+    return FALSE;
+  }
+
+  $key = $_SERVER['HTTP_X_API_KEY'];
+
+  $result = db_query(
+    "SELECT * FROM {indicia_api} WHERE api_key = :key",
+    array(':key' => $key));
+
+  $result_array = $result->fetchAll();
+
+  if (count($result_array) !== 1) {
+    return FALSE;
+  }
+
+  if (!$result_array[0]->enabled) {
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+
+/**
+ * Authorise a user request.
+ *
+ * Uses the posted password and email to check that
+ * the user is valid and activated.
+ * @return object
+ *   Drupal user object, or FALSE if not authorised.
+ */
+function indicia_api_authorise_user() {
+  if (!isset($_SERVER['PHP_AUTH_USER']) || !isset($_SERVER['PHP_AUTH_USER'])) {
+    return FALSE;
+  }
+
+  $name = $_SERVER['PHP_AUTH_USER'];
+  $password = $_SERVER['PHP_AUTH_PW'];
+
+  require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
+
+  $existing_user = NULL;
+  if(filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
+    // Email.
+    $existing_user = user_load_by_mail($name);
+  }
+  else {
+    // Name.
+    $existing_user = user_load_by_name($name);
+  }
+
+  if (empty($existing_user)) {
+    return FALSE;
+  }
+
+  if (!user_check_password($password, $existing_user)) {
+    return FALSE;
+  } elseif ($existing_user->status != 1) {
+    // Check for activation.
+    return FALSE;
+  }
+
+  // Assign this user to gobal user var so that it can be added to the indicia
+  // submission.
+  $GLOBALS['user'] = $existing_user;
+  return $existing_user;
+}
+
+/**
+ * A function to escape user input.
+ *
+ * Currently simply a wrapper around drupal's check_plain function.
+ */
+function indicia_api_escape($value) {
+  if (is_array($value)) {
+    $escaped_array = array();
+    foreach ($value as $key => $nested_value) {
+      $escaped_array[$key] = indicia_api_escape($nested_value);
+    }
+    return $escaped_array;
+  }
+  else {
+    return check_plain($value);
+  }
+}
+
+/**
+ * A simple utility method to generate a random string of specific length.
+ *
+ * @param int $length
+ *   The length of string required.
+ *
+ * @return string
+ *   A random string.
+ */
+function indicia_api_generate_random_string($length = 10) {
+  return substr(str_shuffle("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, $length);
+}
+
+
+/**
+ * Obtains an indicia user id from the warehouse.
+ *
+ * This calls the index.php/services/user_identifier/get_user_id service to
+ * return an indicia id which can be associated with the user account.
+ *
+ * @param string $email
+ *   The user's email.
+ * @param string $firstname
+ *   The user's first name.
+ * @param string $secondname
+ *   The user's surname.
+ * @param int $cms_id
+ *   The Drupal user id. Not needed when creating new users.
+ *
+ * @return int
+ *   The indicia user id if successful else -1 or and error message.
+ */
+function indicia_api_get_user_id($email, $firstname, $secondname, $cms_id = NULL) {
+  // Get connection/indicia website details.
+  $connection = iform_get_connection_details(NULL);
+
+  $postargs = array();
+  $postargs['website_id'] = $connection['website_id'];
+
+  // Obtain nonce.
+  $curl_check = data_entry_helper::http_post(
+    helper_config::$base_url . 'index.php/services/security/get_nonce',
+    $postargs);
+
+  if ($curl_check['result']) {
+    $nonce = $curl_check['output'];
+
+    $postargs = array();
+    $postargs['identifiers'] = '[{"type":"email","identifier":"' . $email . '"}]';
+    $postargs['auth_token'] = sha1($nonce . ":" . $connection['password']);
+    $postargs['surname'] = $secondname;
+    $postargs['first_name'] = $firstname;
+    if (isset($cms_id)) {
+      $postargs['cms_user_id'] = $cms_id;
+    }
+    $postargs['force'] = 'split';
+    $postargs['nonce'] = $nonce;
+
+    indicia_api_log(print_r($postargs, 1));
+
+    // Request the user id.
+    $get_id_results = data_entry_helper::http_post(
+      helper_config::$base_url . 'index.php/services/user_identifier/get_user_id',
+      $postargs,
+      FALSE);
+    indicia_api_log(print_r($get_id_results, 1));
+
+    $result = json_decode($get_id_results['output']);
+    if (!isset($result->error)) {
+      return intval($result->userId);
+    }
+    else {
+      indicia_api_log('Error in indicia_api_get_user_id:' . $result->error);
+      return $result->error;
+    }
+  }
+  else {
+    indicia_api_log('indicia_api_get_user_id:Unable to retreive nonce');
+  }
+
+  return -1;
+}
+
+/**
+ *  Check for existing user that do not have indicia id in their profile field.
+ *
+ * @param $existing_user_obj
+ */
+function check_user_indicia_id($user_full) {
+  // Allow to update own user record only.
+  if (!ownAuthenticated($user_full)) {
+    return;
+  }
+
+  $indicia_user_id = $user_full->{INDICIA_ID_FIELD}->value();
+  if (!$indicia_user_id || $indicia_user_id == -1) {
+    indicia_api_log('Associating indicia user id');
+    // Look up indicia id.
+    $indicia_user_id = indicia_api_get_user_id($user_full->mail->value(),
+      $user_full->{FIRSTNAME_FIELD}->value(),
+      $user_full->{SECONDNAME_FIELD}->value(),
+      $user_full->uid->value());
+
+    if (is_int($indicia_user_id)) {
+      $user_full->{INDICIA_ID_FIELD}->set($indicia_user_id);
+      $user_full->save();
+    }
+  }
+}
+
+/**
+ * Test if the supplied password is acceptable.
+ *
+ * Simple at the moment but could contain additional checks (alpha-numerics,
+ * special chars etc)
+ *
+ * @param string $pass
+ *   The proposed password.
+ *
+ * @return bool
+ *   TRUE is password is acceptable, else FALSE
+ */
+function indicia_api_validate_password($pass) {
+  return strlen($pass) >= 0;
+}
+
+
+/**
+ * Logs messages if in log mode.
+ *
+ * Messages go to the PHP error log and the Drupal error log.
+ */
+function indicia_api_log($message, $variables = array(), $severity = WATCHDOG_NOTICE, $link = NULL) {
+  // Obtain log mode indicator.
+  if (!isset($_SERVER['HTTP_X_API_KEY']) || empty($_SERVER['HTTP_X_API_KEY'])) {
+    return;
+  }
+
+  $key = $_SERVER['HTTP_X_API_KEY'];
+
+  $result = db_query("SELECT * FROM {indicia_api} WHERE api_key = :key",
+    array(':key' => $key));
+  $result_array = $result->fetchAll();
+  $log_mode = $result_array[0]->log;
+
+  switch ($log_mode) {
+    case WATCHDOG_DEBUG:
+      error_log($message);
+      watchdog("Indicia API", $message, $variables, $severity, $link);
+      break;
+
+    case WATCHDOG_ERROR:
+      if ($severity === WATCHDOG_ERROR) {
+        error_log($message);
+        watchdog("Indicia API", $message, $variables, $severity, $link);
+      }
+      break;
+
+    default:
+  }
+}
+
+/**
+ * Prints to log and returns a json formatted error back to the client.
+ *
+ * @param int $code
+ *   Status code of the header.
+ * @param string $status
+ *   Status of the header.
+ * @param string $title
+ *   Title of the error.
+ * @param null $errors
+ *   If multiple errors then it can be passed as an array.
+ */
+function error_print($code, $status, $title, $errors = NULL) {
+  drupal_add_http_header('Status', $code . ' ' . $status);
+  if (is_null($errors)) {
+    drupal_json_output([
+      'errors' => [
+        [
+          'status' => (string) $code,
+          'title' => $title,
+        ],
+      ],
+    ]);
+    indicia_api_log($title, NULL, WATCHDOG_ERROR);
+  }
+  else {
+    drupal_json_output([
+      'errors' => $errors,
+    ]);
+    indicia_api_log('Errors', NULL, WATCHDOG_ERROR);
+    indicia_api_log(print_r($errors, 1), NULL, WATCHDOG_ERROR);
+  }
+}
+
+
+// Allow to update own user record only.
+function ownAuthenticated($user, $silent = FALSE) {
+  $own = FALSE;
+
+  if (empty($_SERVER['PHP_AUTH_USER'])){
+    $own = FALSE;
+  }
+  else {
+    if (filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
+      // Email.
+      if ($_SERVER['PHP_AUTH_USER'] === $user->mail->value()) {
+        $own = TRUE;
+      }
+      if (!$silent) {
+        indicia_api_log(
+          'Own account authenticated (email) ' .
+          $user->mail->value() . ' ' .
+          ($own ? 'TRUE' : 'FALSE')
+        );
+      }
+    }
+    else {
+      if (strtolower($_SERVER['PHP_AUTH_USER']) === strtolower($user->name->value())) {
+        // Name.
+        $own = TRUE;
+      }
+
+      if (!$silent) {
+        indicia_api_log(
+          'Own account authenticated (name) ' .
+          $user->name->value() . ' ' .
+          ($own ? 'TRUE' : 'FALSE')
+        );
+      }
+    }
+  }
+
+  return $own;
+}
+
+
+/**
+ * Implements hook_mail().
+ */
+function indicia_api_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'register':
+      global $base_url;
+      $path = $base_url . '/' . API_PATH;
+      $activation_url = "$path/users/{$params['uid']}/activate?" .
+        "activationToken={$params['activation_token']}";
+      $subject = variable_get('indicia_api_registration_subject', "Welcome to !site");
+      $body = variable_get('indicia_api_registration_body',
+        "Activate your account by visiting the following page in your web browser: !activation_url");
+
+      $message['subject'] = t($subject, array("!site" => variable_get('site_name', "Indicia")));
+      $message['body'][] = t($body, array("!activation_url" => $activation_url));
+      break;
+  }
+}
