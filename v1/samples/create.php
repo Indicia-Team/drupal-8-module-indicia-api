@@ -80,7 +80,7 @@ function process_parameters($data, $connection) {
     foreach ($data['samples'] as $sample) {
       $processed = process_parameters($sample, $connection);
       array_push($model['subModels'], [
-        'fkId' => 'sample_id',
+        'fkId' => 'parent_id',
         'model' => $processed['model'],
       ]);
       if (!empty($processed['files'])) {
