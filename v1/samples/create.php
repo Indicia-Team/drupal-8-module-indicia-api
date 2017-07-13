@@ -272,6 +272,12 @@ function find_duplicates($submission) {
 
   $duplicates = [];
   if (isset($submission['subModels']) && is_array($submission['subModels'])) {
+    // don't run this intensive query if big model: todo - optimize and enable
+    if (sizeof($submission['subModels']) > 5) {
+	  indicia_api_log('Submission is too big: skipping the search for duplicates.');
+	  return $duplicates;
+    }
+	
     foreach ($submission['subModels'] as $occurrence) {
       if (isset($occurrence['model']['fields']['external_key']['value'])) {
         $existing = data_entry_helper::get_population_data(array(
