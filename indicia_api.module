@@ -473,7 +473,7 @@ function ownAuthenticated($user, $silent = FALSE) {
   else {
     if (filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
       // Email.
-      if ($_SERVER['PHP_AUTH_USER'] === $user->mail->value()) {
+      if (strtolower($_SERVER['PHP_AUTH_USER']) === strtolower($user->mail->value())) {
         $own = TRUE;
       }
       if (!$silent) {
