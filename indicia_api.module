@@ -225,15 +225,15 @@ function indicia_api_authorise_user() {
   if(filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
     // Email.
     $existing_user = user_load_by_mail($name);
+    
+    // In case the username is an email and username != email
+    if (empty($existing_user)) {
+      $existing_user = user_load_by_name($name);
+    }
   }
   else {
     // Name.
     $existing_user = user_load_by_name($name);
-
-    // In case the username is an email and username != email
-    if (empty($existing_user)) {
-      $existing_user = user_load_by_mail($name);
-    }
   }
 
   if (empty($existing_user)) {
