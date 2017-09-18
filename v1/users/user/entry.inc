@@ -58,6 +58,12 @@ function load_user($uid) {
   elseif (filter_var($uid, FILTER_VALIDATE_EMAIL)) {
     indicia_api_log('Loading user by email: ' . $uid . '.');
     $user = user_load_by_mail($uid);
+
+    // In case the username is an email and username != email
+    if (empty($user)) {
+      indicia_api_log('Loading user by name: ' . $uid . '.');
+      $user = user_load_by_name($uid);
+    }
   }
   // Name.
   else {

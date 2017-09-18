@@ -225,6 +225,11 @@ function indicia_api_authorise_user() {
   if(filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
     // Email.
     $existing_user = user_load_by_mail($name);
+    
+    // In case the username is an email and username != email
+    if (empty($existing_user)) {
+      $existing_user = user_load_by_name($name);
+    }
   }
   else {
     // Name.
@@ -474,6 +479,12 @@ function ownAuthenticated($user, $silent = FALSE) {
     if (filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
       // Email.
       if (strtolower($_SERVER['PHP_AUTH_USER']) === strtolower($user->mail->value())) {
+        $own = TRUE;
+      }
+      // In case the username is an email and username != email
+      elseif (strtolower($_SERVER['PHP_AUTH_USER']) === strtolower($user->name->value())) {
+        // Name.
+        indicia_api_log('Email was found matching the username.');
         $own = TRUE;
       }
       if (!$silent) {
