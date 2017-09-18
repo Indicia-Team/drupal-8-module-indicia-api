@@ -61,7 +61,7 @@ function load_user($uid) {
 
     // In case the username is an email and username != email
     if (empty($user)) {
-      indicia_api_log('Loading user by uid: ' . $uid . '.');
+      indicia_api_log('Loading user by name: ' . $uid . '.');
       $user = user_load_by_name($uid);
     }
   }
