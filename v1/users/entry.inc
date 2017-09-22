@@ -6,7 +6,7 @@ require 'create.php';
 function indicia_api_users() {
   drupal_add_http_header('Access-Control-Allow-Origin', "*");
   drupal_add_http_header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  drupal_add_http_header('Access-Control-Allow-Headers', 'Authorization');
+  drupal_add_http_header('Access-Control-Allow-Headers', 'authorization, x-api-key, content-type');
 
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'POST':

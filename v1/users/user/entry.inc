@@ -7,7 +7,7 @@ require 'activate.php';
 function indicia_api_user($uid = NULL, $activate = FALSE) {
   drupal_add_http_header('Access-Control-Allow-Origin', "*");
   drupal_add_http_header('Access-Control-Allow-Methods', 'GET,PUT,OPTIONS');
-  drupal_add_http_header('Access-Control-Allow-Headers', 'Authorization');
+  drupal_add_http_header('Access-Control-Allow-Headers', 'authorization, x-api-key, content-type');
 
   switch ($_SERVER['REQUEST_METHOD']) {
     case 'GET':
