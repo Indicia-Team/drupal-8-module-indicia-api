@@ -1,7 +1,9 @@
-name = Indicia API
-description = A module which allows to connect to Indicia's warehouse API and improves drupal API services.
-package = "Indicia"
-core = 7.x
-dependencies[] = iform
-dependencies[] = entity
-version = "7.x-1.0"
+name: Indicia API
+description: A module which allows to connect to Indicia's warehouse API and improves drupal API services.
+core: 8.x
+version: "8.x-1.0"
+package: "Indicia"
+type: module
+dependencies:
+  - iform
+  - entity

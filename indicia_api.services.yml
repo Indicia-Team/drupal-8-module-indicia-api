@@ -1,0 +1,5 @@
+services:
+  indicia_api.path_processor:
+    class: \Drupal\indicia_api\PathProcessor\UrlPathProcessor
+    tags:
+      - { name: path_processor_inbound, priority: 250 }

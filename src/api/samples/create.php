@@ -1,11 +1,15 @@
 <?php
 
+use Drupal\Core\Logger\RfcLogLevel;
+use Symfony\Component\HttpFoundation\JsonResponse;
+
 /**
  * Samples POST request handler.
  */
 function samples_create() {
-  if (!validate_samples_create_request()) {
-    return;
+  $validate_request = validate_samples_create_request();
+  if (!empty($validate_request)) {
+    return error_print($validate_request['code'], $validate_request['header'], $validate_request['msg']);
   }
 
   $request = drupal_static('request');
@@ -17,23 +21,23 @@ function samples_create() {
     $auth = data_entry_helper::get_read_write_auth($connection['website_id'], $connection['password']);
   }
   catch (Exception $e) {
-    error_print(502, 'Bad Gateway', 'Something went wrong in obtaining nonce.');
-    return;
+    return error_print(502, 'Bad Gateway', 'Something went wrong in obtaining nonce.');
   }
 
   // Construct post parameter array.
   $processed = process_parameters($data, $connection);
 
   // Check for duplicates.
-  if (has_duplicates($processed['model'])) {
-    return;
+  $dupes = has_duplicates($processed['model']);
+  if (!empty($dupes)) {
+    return error_print(409, 'Conflict', NULL, $dupes);
   }
 
   // Send record to indicia.
   $response = forward_post_to('save', $processed['model'], $processed['files'], $auth['write_tokens']);
 
   // Return response to client.
-  return_response($response);
+  return return_response($response);
 }
 
 /**
@@ -249,12 +253,9 @@ function has_duplicates($submission) {
         'title' => 'Occurrence already exists.',
       ]);
     }
-    error_print(409, 'Conflict', NULL, $errors);
-
-    return TRUE;
+    return $errors;
   }
-
-  return FALSE;
+  return array();
 }
 
 /**
@@ -274,10 +275,10 @@ function find_duplicates($submission) {
   if (isset($submission['subModels']) && is_array($submission['subModels'])) {
     // don't run this intensive query if big model: todo - optimize and enable
     if (sizeof($submission['subModels']) > 5) {
-	  indicia_api_log('Submission is too big: skipping the search for duplicates.');
-	  return $duplicates;
+    indicia_api_log('Submission is too big: skipping the search for duplicates.');
+    return $duplicates;
     }
-	
+
     foreach ($submission['subModels'] as $occurrence) {
       if (isset($occurrence['model']['fields']['external_key']['value'])) {
         $existing = data_entry_helper::get_population_data(array(
@@ -308,42 +309,53 @@ function validate_samples_create_request() {
   // Reject submissions with an incorrect secret (or instances where secret is
   // Not set).
   if (!indicia_api_authorise_key()) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect API key.');
-
-    return FALSE;
+    return array(
+      'code' => 401,
+      'header' => 'Unauthorized',
+      'msg' => 'Missing or incorrect API key.',
+    );
   }
 
   if (empty($request) || !isset($request['data'])) {
-    error_print(400, 'Bad Request', 'Missing or invalid submission.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Missing or invalid submission.',
+    );
   }
 
   if (!indicia_api_authorise_user() && !authorise_anonymous()) {
-    error_print(400, 'Bad Request', 'Could not find/authenticate user.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Could not find/authenticate user.',
+    );
   }
 
   if (!isset($request['data']['type']) || $request['data']['type'] != 'samples') {
-    error_print(400, 'Bad Request', 'Resource of type samples not found.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Resource of type samples not found.',
+    );
   }
 
 
   if (!isset($request['data']['survey_id'])) {
-    error_print(400, 'Bad Request', 'Missing or incorrect survey id.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Missing or incorrect survey id.',
+    );
   }
 
   // Validate sample.
-  if (!validate_sample($request['data'])) {
-    return FALSE;
+  $validate_sample = validate_sample($request['data']);
+  if (!empty($validate_sample)) {
+    return $validate_sample;
   }
 
-  return TRUE;
+  return array();
 }
 
 function authorise_anonymous() {
@@ -362,7 +374,7 @@ function authorise_anonymous() {
 
   if (!is_numeric($result_array[0]->anonymous_user)) {
     indicia_api_log('Provided anonymous user ID is not numeric.',
-      NULL, WATCHDOG_ERROR);
+      NULL, RfcLogLevel::ERROR);
     return FALSE;
   }
 
@@ -370,7 +382,7 @@ function authorise_anonymous() {
 
   if ($anonymous_user_id == -1) {
     indicia_api_log('Anonymous recording is not allowed.',
-      NULL, WATCHDOG_ERROR);
+      NULL, RfcLogLevel::ERROR);
     return FALSE;
   }
 
@@ -379,7 +391,7 @@ function authorise_anonymous() {
 
   if (empty($existing_user)) {
     indicia_api_log('Not found anonymous user with ID ' . $anonymous_user_id . '.',
-      NULL, WATCHDOG_ERROR);
+      NULL, RfcLogLevel::ERROR);
     return FALSE;
   }
 
@@ -393,80 +405,96 @@ function authorise_anonymous() {
 
 function validate_sample($model) {
   if (!isset($model['fields']['date'])) {
-    error_print(400, 'Bad Request', 'Missing sample date.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Missing sample date.',
+    );
   }
   if (!isset($model['fields']['entered_sref'])) {
-    error_print(400, 'Bad Request', 'Missing sample entered_sref.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Missing sample entered_sref.',
+    );
   }
   if (!isset($model['fields']['entered_sref_system'])) {
-    error_print(400, 'Bad Request', 'Missing sample entered_sref_system.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Missing sample entered_sref_system.',
+    );
   }
 
   if (isset($model['samples']) && is_array($model['samples'])) {
     foreach ($model['samples'] as $sample) {
-      if (!validate_sample($sample)) {
-        return FALSE;
+      $valid_sample = validate_sample($sample);
+      if (!empty($valid_sample)) {
+        return $valid_sample;
       }
     }
   }
 
   if (isset($model['occurrences']) && is_array($model['occurrences'])) {
     foreach ($model['occurrences'] as $occurrence) {
-      if (!validate_occurrence($occurrence)) {
-        return FALSE;
+      $valid_occurrence = validate_occurrence($occurrence);
+      if (!empty($valid_occurrence)) {
+        return $valid_occurrence;
       }
     }
   }
 
   if (isset($model['media']) && is_array($model['media'])) {
     foreach ($model['media'] as $media) {
-      if (!validate_media($media)) {
-        return FALSE;
+      $valid_media = validate_media($media);
+      if (!empty($valid_media)) {
+        return $valid_media;
       }
     }
   }
 
-  return TRUE;
+  return array();
 }
 
 function validate_occurrence($model) {
   if (!isset($model['fields']['taxa_taxon_list_id'])) {
-    error_print(400, 'Bad Request', 'Missing occurrence taxa_taxon_list_id.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Missing occurrence taxa_taxon_list_id.',
+    );
   }
   if (isset($model['media']) && is_array($model['media'])) {
     foreach ($model['media'] as $media) {
-      if (!validate_media($media)) {
-        return FALSE;
+      $valid_media = validate_media($media);
+      if (!empty($valid_media)) {
+        return $valid_media;
       }
     }
   }
 
-  return TRUE;
+  return array();
 }
 
 
 function validate_media($model) {
   if (!isset($model['name'])) {
-    error_print(400, 'Bad Request', 'Missing media name.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Missing media name.',
+    );
   }
 
   if (!isset($_FILES[$model['name']])) {
-    error_print(400, 'Bad Request', 'Missing media.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Missing media.',
+    );
   }
 
-  return TRUE;
+  return array();
 }
 
 function return_response($response) {
@@ -481,20 +509,21 @@ function return_response($response) {
           'description' => $error,
         ]);
       }
-      error_print(400, 'Bad Request', NULL, $errors);
+      return error_print(400, 'Bad Request', NULL, $errors);
     }
     else {
-      error_print(400, 'Bad Request', $response['error']);
+      return error_print(400, 'Bad Request', $response['error']);
     }
   }
   else {
     // Created.
-    drupal_add_http_header('Status', '201 Created');
     $data = extract_sample_response($response['struct']);
 
     $output = ['data' => $data];
-    drupal_json_output($output);
     indicia_api_log(print_r($output, 1));
+
+    $headers = array('Status' => '201 Created');
+    return new JsonResponse($data, '201', $headers);
   }
 }
 
@@ -590,7 +619,7 @@ function forward_post_to($entity, $submission = NULL, $files = NULL, $writeToken
 
   // If this is not JSON, it is an error, so just return it as is.
   if (!$output) {
-    indicia_api_log('Problem occurred with the submission.', NULL, WATCHDOG_ERROR);
+    indicia_api_log('Problem occurred with the submission.', NULL, RfcLogLevel::ERROR);
     $output = $response['output'];
   }
 
@@ -622,8 +651,8 @@ function forward_post_to($entity, $submission = NULL, $files = NULL, $writeToken
         }
 
         if ($success !== TRUE) {
-          indicia_api_log('Errors', NULL, WATCHDOG_ERROR);
-          indicia_api_log(print_r($success, 1), NULL, WATCHDOG_ERROR);
+          indicia_api_log('Errors', NULL, RfcLogLevel::ERROR);
+          indicia_api_log(print_r($success, 1), NULL, RfcLogLevel::ERROR);
 
           // Record all files that fail to move successfully.
           $image_overall_success = FALSE;

@@ -1,5 +1,7 @@
 <?php
 
+use Drupal\user\Entity\User;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
  * This function handles the login request.
@@ -7,62 +9,70 @@
  * The function either returns an error or the user's details.
  */
 function user_get($user) {
-  if (!validate_user_get_request($user)) {
-    return;
+
+  $valid = validate_user_get_request($user);
+  if (!empty($valid)) {
+    return error_print($valid['code'], $valid['header'], $valid['msg']);
   }
 
   // Return the user's info to client.
-  drupal_add_http_header('Status', '200 OK');
-  return_user_details($user);
+  return user_details($user);
   indicia_api_log('User details returned.');
 }
 
 function validate_user_get_request($user) {
   // API key authorise.
   if (!indicia_api_authorise_key()) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect API key.');
-
-    return FALSE;
+    return array(
+      'code' => 401,
+      'header' => 'Unauthorized',
+      'msg' => 'Missing or incorrect API key.',
+    );
   }
 
   // User authorise
   if (!indicia_api_authorise_user()) {
-    error_print(401, 'Unauthorized', 'Incorrect password or email.');
-
-    return FALSE;
+    return array(
+      'code' => 401,
+      'header' => 'Unauthorized',
+      'msg' => 'Incorrect password or email.',
+    );
   }
 
   // Check if user with UID exists.
   if (!$user) {
-    error_print(404, 'Not found', 'User not found.');
-
-    return FALSE;
+    return array(
+      'code' => 404,
+      'header' => 'Not found',
+      'msg' => 'User not found.',
+    );
   }
 
-  return TRUE;
+  return array();
 }
 
-function return_user_details($user, $fullDetails = FALSE) {
+function user_details($user, $fullDetails = FALSE) {
   indicia_api_log('Returning response.');
 
-  $user_full = entity_metadata_wrapper('user', $user);
-
-  check_user_indicia_id($user_full);
+  check_user_indicia_id($user);
 
   $data = [
     'type' => 'users',
-    'id' => (int) $user_full->getIdentifier(),
-    'firstname' => $user_full->{FIRSTNAME_FIELD}->value(),
-    'secondname' => $user_full->{SECONDNAME_FIELD}->value(),
+    'id' => (int) $user->id(),
+    'firstname' => $user->get(FIRSTNAME_FIELD)->value,
+    'secondname' => $user->get(SECONDNAME_FIELD)->value,
   ];
 
-  if (ownAuthenticated($user_full) || $fullDetails) {
-    $data['name'] = $user_full->name->value();
-    $data['email'] = $user_full->mail->value();
-    $data['warehouse_id'] = (int) $user_full->{INDICIA_ID_FIELD}->value();
+
+  if (ownAuthenticated($user) || $fullDetails) {
+    $data['name'] = $user->getUsername();
+    $data['email'] = $user->getEmail();
+    $data['warehouse_id'] = (int) $user->get(INDICIA_ID_FIELD)->value;
   }
 
   $output = ['data' => $data];
-  drupal_json_output($output);
   indicia_api_log(print_r($output, 1));
+
+  $headers = array('Status' => '200 OK');
+  return new JsonResponse($data, '200', $headers);
 }

@@ -1,5 +1,7 @@
 <?php
 
+use Drupal\field\Entity\FieldConfig;
+
 /**
  * @file
  * The install and update code for the indicia_api module.
@@ -89,68 +91,6 @@ function indicia_api_schema() {
   );
 
   return $schema;
-}
-
-/**
- * Implements hook_install().
- * 
- * Adds custom fields used by module.
- */
-function indicia_api_install() {
-  $fields = array(
-    'field_indicia_user_id' => (object) array(
-      'type' => 'number_integer',
-      'title' => 'User ID for this key on the warehouse',
-      'name' => 'field_indicia_user_id',
-    ),
-    'field_first_name' => (object) array(
-      'type' => 'text',
-      'title' => 'User\'s first name',
-      'name' => 'field_first_name',
-    ),
-    'field_last_name' => (object) array(
-      'type' => 'text',
-      'title' => 'User\'s last name',
-      'name' => 'field_last_name',
-      'required' => TRUE,
-    ),
-    'field_activation_token' => (object) array(
-      'type' => 'text',
-      'title' => 'One-time login code for mobile registered user',
-      'name' => 'field_activation_token',
-    ),
-  );
-
-  foreach ($fields as $fielddef) {
-    if (!field_info_field($fielddef->name)) {
-      watchdog('ima', 'Adding field: ' . $fielddef->name);
-      $field = array(
-        'field_name' => $fielddef->name,
-        'type' => $fielddef->type,
-      );
-      if (isset($fielddef->required)) {
-        $field['settings'] = array('required' => TRUE);
-      }
-      field_create_field($field);
-    }
-    else {
-      watchdog('ima', 'Field already exists: ' . $fielddef->name);
-    }
-    if (!field_info_instance('user', $fielddef->name, 'user')) {
-      watchdog('ima', 'Adding instance: ' . $fielddef->name);
-      $instance = array(
-        'field_name' => $fielddef->name,
-        'entity_type' => 'user',
-        'label' => $fielddef->title,
-        'bundle' => 'user',
-        'required' => isset($fielddef->required) && $fielddef->required,
-      );
-      field_create_instance($instance);
-    }
-    else {
-      watchdog('ima', 'Instance already exists: ' . $fielddef->name);
-    }
-  }
 }
 
 /**

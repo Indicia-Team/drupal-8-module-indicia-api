@@ -11,8 +11,12 @@
  * http://jsonapi.org/format/
  */
 
+use Drupal\Core\Logger\RfcLogLevel;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+
 // Module configuration's URL path.
-const CONFIG_PATH = 'admin/config/iform/api';
+const CONFIG_PATH = 'admin/config/indicia_api/api';
 
 const API_BASE = 'api';
 const API_VERSION = 'v1';
@@ -49,87 +53,7 @@ function indicia_api_permission() {
 /*
  * Submit the relevant information to indicia
  */
-if (module_exists('iform')) {
-  iform_load_helpers(array('data_entry_helper'));
-}
-
-/**
- * Implements hook_menu().
- */
-function indicia_api_menu() {
-  $items = array();
-
-  $items[API_PATH . "/samples"] = array(
-    'title' => 'Samples',
-    'page callback' => 'indicia_api_samples',
-    'access callback' => TRUE,
-    'file' => API_VERSION . '/samples/entry.inc',
-  );
-
-  /* TODO: support single sample resource. */
-
-  $items[API_PATH . "/users"] = array(
-    'title' => 'Users',
-    'page callback' => 'indicia_api_users',
-    'access callback' => TRUE,
-    'file' => API_VERSION . '/users/entry.inc',
-  );
-
-  $items[API_PATH . "/users/%"] = array(
-    'title' => 'Users',
-    'page callback' => 'indicia_api_user',
-    'access callback' => TRUE,
-    'page arguments' => array(3, 4),
-    'file' => API_VERSION . '/users/user/entry.inc',
-  );
-  /* TODO: support all reports resource. */
-
-  $items[API_PATH . "/reports/%"] = array(
-    'title' => 'Reports',
-    'page callback' => 'indicia_api_report',
-    'access callback' => TRUE,
-    'page arguments' => array(1),
-    'file' => API_VERSION . '/reports/report/entry.inc',
-  );
-
-  // User Interface options.
-  // Dashboard.
-  $items[CONFIG_PATH] = array(
-    'title' => 'Indicia API',
-    'description' => 'Configure variables relating to the mobile authorisation module',
-    'page callback' => 'indicia_api_dashboard',
-    'access arguments' => array('user mobile auth'),
-    'file' => 'indicia_api.admin.inc',
-  );
-  // Add.
-  $items[CONFIG_PATH . '/add'] = array(
-    'title' => 'Indicia API',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('indicia_api_key'),
-    'access arguments' => array('user mobile auth'),
-    'file' => 'indicia_api.admin.inc',
-    'type' => MENU_CALLBACK,
-  );
-  // Edit.
-  $items[CONFIG_PATH . '/%indicia_api_key'] = array(
-    'title' => 'key settings',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('indicia_api_key', 4),
-    'access arguments' => array('user mobile auth'),
-    'file' => 'indicia_api.admin.inc',
-    'type' => MENU_CALLBACK,
-  );
-  // Delete.
-  $items[CONFIG_PATH . '/delete/%indicia_api_key'] = array(
-    'title' => 'Delete key',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('indicia_api_delete', 5),
-    'access arguments' => array('user mobile auth'),
-    'file' => 'indicia_api.admin.inc',
-    'type' => MENU_CALLBACK,
-  );
-  return $items;
-}
+iform_load_helpers(array('data_entry_helper'));
 
 /**
  * Checks if the user is allowed to see a saved key account.
@@ -138,12 +62,12 @@ function indicia_api_menu() {
  *   An array containing details of an key account.
  *
  * @return bool
- *   TRUE if user has the 'admin moobile auth permission' or they created the
+ *   TRUE if user has the 'admin mobile auth permission' or they created the
  *   key.
  */
 function indicia_api_user_has_permission($key = NULL) {
   global $user;
-  return user_access('admin mobile auth') || (!is_null($key) && $key['created_by'] === $user->uid);
+  return \Drupal::currentUser()->hasPermission('admin mobile auth') || (!is_null($key) && $key['created_by'] === $user->uid);
 }
 
 /**
@@ -219,13 +143,11 @@ function indicia_api_authorise_user() {
   $name = $_SERVER['PHP_AUTH_USER'];
   $password = $_SERVER['PHP_AUTH_PW'];
 
-  require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
-
   $existing_user = NULL;
   if(filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
     // Email.
     $existing_user = user_load_by_mail($name);
-    
+
     // In case the username is an email and username != email
     if (empty($existing_user)) {
       $existing_user = user_load_by_name($name);
@@ -240,16 +162,13 @@ function indicia_api_authorise_user() {
     return FALSE;
   }
 
-  if (!user_check_password($password, $existing_user)) {
+  if (!\Drupal::service('user.auth')->authenticate($existing_user->get('name')->value, $password)) {
     return FALSE;
   } elseif ($existing_user->status != 1) {
     // Check for activation.
     return FALSE;
   }
 
-  // Assign this user to gobal user var so that it can be added to the indicia
-  // submission.
-  $GLOBALS['user'] = $existing_user;
   return $existing_user;
 }
 
@@ -365,17 +284,17 @@ function check_user_indicia_id($user_full) {
     return;
   }
 
-  $indicia_user_id = $user_full->{INDICIA_ID_FIELD}->value();
+  $indicia_user_id = $user_full->get(INDICIA_ID_FIELD)->value;
   if (!$indicia_user_id || $indicia_user_id == -1) {
     indicia_api_log('Associating indicia user id');
     // Look up indicia id.
-    $indicia_user_id = indicia_api_get_user_id($user_full->mail->value(),
-      $user_full->{FIRSTNAME_FIELD}->value(),
-      $user_full->{SECONDNAME_FIELD}->value(),
-      $user_full->uid->value());
+    $indicia_user_id = indicia_api_get_user_id($user_full->get('mail')->value,
+      $user_full->get(FIRSTNAME_FIELD)->value,
+      $user_full->get(SECONDNAME_FIELD)->value,
+      $user_full->id());
 
     if (is_int($indicia_user_id)) {
-      $user_full->{INDICIA_ID_FIELD}->set($indicia_user_id);
+      $user_full->get(INDICIA_ID_FIELD)->set($indicia_user_id);
       $user_full->save();
     }
   }
@@ -403,7 +322,7 @@ function indicia_api_validate_password($pass) {
  *
  * Messages go to the PHP error log and the Drupal error log.
  */
-function indicia_api_log($message, $variables = array(), $severity = WATCHDOG_NOTICE, $link = NULL) {
+function indicia_api_log($message, $severity = RfcLogLevel::NOTICE) {
   // Obtain log mode indicator.
   if (!isset($_SERVER['HTTP_X_API_KEY']) || empty($_SERVER['HTTP_X_API_KEY'])) {
     return;
@@ -417,15 +336,15 @@ function indicia_api_log($message, $variables = array(), $severity = WATCHDOG_NO
   $log_mode = $result_array[0]->log;
 
   switch ($log_mode) {
-    case WATCHDOG_DEBUG:
+    case RfcLogLevel::DEBUG:
       error_log($message);
-      watchdog("Indicia API", $message, $variables, $severity, $link);
+      \Drupal::logger('indicia_api')->log($severity, $message);
       break;
 
-    case WATCHDOG_ERROR:
-      if ($severity === WATCHDOG_ERROR) {
+    case RfcLogLevel::ERROR:
+      if ($severity === RfcLogLevel::ERROR) {
         error_log($message);
-        watchdog("Indicia API", $message, $variables, $severity, $link);
+        \Drupal::logger('indicia_api')->log($severity, $message);
       }
       break;
 
@@ -445,25 +364,30 @@ function indicia_api_log($message, $variables = array(), $severity = WATCHDOG_NO
  * @param null $errors
  *   If multiple errors then it can be passed as an array.
  */
+
 function error_print($code, $status, $title, $errors = NULL) {
-  drupal_add_http_header('Status', $code . ' ' . $status);
+  $headers = array('Status' => $code . ' ' . $status);
   if (is_null($errors)) {
-    drupal_json_output([
+    $data = [
       'errors' => [
         [
           'status' => (string) $code,
           'title' => $title,
         ],
       ],
-    ]);
-    indicia_api_log($title, NULL, WATCHDOG_ERROR);
+    ];
+
+    indicia_api_log($title, RfcLogLevel::ERROR);
+    return new JsonResponse($data, $code, $headers);
   }
   else {
-    drupal_json_output([
+    indicia_api_log('Errors', RfcLogLevel::ERROR);
+    indicia_api_log(print_r($errors, 1), RfcLogLevel::ERROR);
+
+    $data = [
       'errors' => $errors,
-    ]);
-    indicia_api_log('Errors', NULL, WATCHDOG_ERROR);
-    indicia_api_log(print_r($errors, 1), NULL, WATCHDOG_ERROR);
+    ];
+    return new JsonResponse($data, $code, $headers);
   }
 }
 
@@ -478,11 +402,11 @@ function ownAuthenticated($user, $silent = FALSE) {
   else {
     if (filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
       // Email.
-      if (strtolower($_SERVER['PHP_AUTH_USER']) === strtolower($user->mail->value())) {
+      if (strtolower($_SERVER['PHP_AUTH_USER']) === strtolower($user->get('mail')->value)) {
         $own = TRUE;
       }
       // In case the username is an email and username != email
-      elseif (strtolower($_SERVER['PHP_AUTH_USER']) === strtolower($user->name->value())) {
+      elseif (strtolower($_SERVER['PHP_AUTH_USER']) === strtolower($user->get('name')->value)) {
         // Name.
         indicia_api_log('Email was found matching the username.');
         $own = TRUE;
@@ -490,13 +414,13 @@ function ownAuthenticated($user, $silent = FALSE) {
       if (!$silent) {
         indicia_api_log(
           'Own account authenticated (email) ' .
-          $user->mail->value() . ' ' .
+          $user->get('mail')->value . ' ' .
           ($own ? 'TRUE' : 'FALSE')
         );
       }
     }
     else {
-      if (strtolower($_SERVER['PHP_AUTH_USER']) === strtolower($user->name->value())) {
+      if (strtolower($_SERVER['PHP_AUTH_USER']) === strtolower($user->get('name')->value)) {
         // Name.
         $own = TRUE;
       }
@@ -504,7 +428,7 @@ function ownAuthenticated($user, $silent = FALSE) {
       if (!$silent) {
         indicia_api_log(
           'Own account authenticated (name) ' .
-          $user->name->value() . ' ' .
+          $user->get('name')->value . ' ' .
           ($own ? 'TRUE' : 'FALSE')
         );
       }

@@ -1,5 +1,7 @@
 <?php
 
+use Symfony\Component\HttpFoundation\JsonResponse;
+
 /**
  * Reports GET request handler.
  *
@@ -22,16 +24,16 @@ Requires the following
  * orderby, sortdir, limit or offset you wish to pass to the report.
  * Prints out a JSON string for the report response.
  */
-function report_get($reportID) {
+function report_get($report) {
   $request = drupal_static('request');
   $params = $request; // TODO: clone it
 
-  if (!validate_report_get_request($reportID)) {
-    return;
+  $valid = validate_report_get_request($report);
+  if (!empty($valid)) {
+    return error_print($valid['code'], $valid['header'], $valid['msg']);
   }
 
-  // Wrap user for ease of accessing fields.
-  $user_wrapped = entity_metadata_wrapper('user', $GLOBALS['user']);
+  $user = \Drupal::currentUser();
 
   $connection = iform_get_connection_details(NULL);
   $auth = data_entry_helper::get_read_auth($connection['website_id'], $connection['password']);
@@ -51,10 +53,11 @@ function report_get($reportID) {
   );
 
   if ($caching === 'false' || $request['caching'] === 'perUser') {
-    $params['user_id'] = $user_wrapped->field_indicia_user_id->value();
+    $user = \Drupal\user\Entity\User::load(\Drupal::currentUser()->id());
+    $params['user_id'] = $user->get(INDICIA_ID_FIELD)->value;
   }
 
-  $params = array_merge($defaults, $auth, $params, [ 'report' => $reportID ]);
+  $params = array_merge($defaults, $auth, $params, [ 'report' => $report ]);
 
   $cache_loaded = FALSE;
   if ($caching !== 'false') {
@@ -74,7 +77,7 @@ function report_get($reportID) {
     );
   }
 
-  return_report_response($response, $params, $cache_loaded, $caching, $cache_timeout);
+  return report_response($response, $params, $cache_loaded, $caching, $cache_timeout);
 }
 
 /**
@@ -83,51 +86,56 @@ function report_get($reportID) {
  * @return bool
  *   True if the request is valid
  */
-function validate_report_get_request($reportID) {
+function validate_report_get_request($report) {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
   if (!indicia_api_authorise_key()) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect API key.');
-
-    return FALSE;
+    return array(
+      'code' => 401,
+      'header' => 'Unauthorized',
+      'msg' => 'Missing or incorrect API key.',
+    );
   }
 
   if (!indicia_api_authorise_user()) {
-    error_print(401, 'Unauthorized', 'Could not find/authenticate user.');
-
-    return FALSE;
+    return array(
+      'code' => 401,
+      'header' => 'Unauthorized',
+      'msg' => 'Could not find/authenticate user.',
+    );
   }
 
-  if (empty($reportID)) {
-    error_print(400, 'Bad Request', 'Missing or incorrect report url.');
-
-    return FALSE;
+  if (empty($report)) {
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Missing or incorrect report url.',
+    );
   }
 
-  return TRUE;
+  return array();
 }
 
-function return_report_response($response, $params, $cache_loaded, $caching, $cache_timeout) {
+function report_response($response, $params, $cache_loaded, $caching, $cache_timeout) {
   indicia_api_log('Returning response.');
 
   if (!isset($response['output'])) {
-    error_print(502, 'Bad gateway');
-    return;
+    return error_print(502, 'Bad gateway');
   }
 
   $data = json_decode($response['output'], TRUE);
 
   if (isset($data['error'])) {
-    error_print(404, 'Not Found', $data['error']);
-    return;
+    return error_print(404, 'Not Found', $data['error']);
   }
 
   if ($caching !== 'false' && !$cache_loaded) {
     data_entry_helper::cache_set($params, json_encode($response), $cache_timeout);
   }
 
-  drupal_add_http_header('Status', '200 OK');
   $output = ['data' => $data];
-  drupal_json_output($output);
   indicia_api_log(print_r($output, 1));
+
+  $headers = array('Status' => '200 OK');
+  return new JsonResponse($data, '200', $headers);
 }

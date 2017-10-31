@@ -2,13 +2,15 @@
 
 
 function user_update($user) {
-  if (!validate_user_update_request($user)) {
-    return;
+  $valid = validate_user_update_request($user);
+  if (!empty($valid)) {
+    return error_print($valid['code'], $valid['header'], $valid['msg']);
   }
 
   _user_mail_notify('password_reset', $user);
-  return_user_details($user);
-  indicia_api_log('Password reset email sent to ' . $user->mail);
+  indicia_api_log('Password reset email sent to ' . $user->getEmail());
+
+  return user_details($user);
 }
 
 
@@ -18,30 +20,39 @@ function validate_user_update_request($user) {
   // Reject submissions with an incorrect secret (or instances where secret is
   // not set).
   if (!indicia_api_authorise_key()) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect API key.');
-
-    return FALSE;
+    return array(
+      'code' => 401,
+      'header' => 'Unauthorized',
+      'msg' => 'Missing or incorrect API key.',
+    );
   }
 
   // Check if user with UID exists.
   if (!$user) {
-    error_print(404, 'Not found', 'User not found.');
-
-    return FALSE;
+    return array(
+      'code' => 404,
+      'header' => 'Not found',
+      'msg' => 'User not found.',
+    );
   }
 
+  //echo var_dump($request);
   if (!isset($request['data']['type']) || $request['data']['type'] != 'users') {
-    error_print(400, 'Bad Request', 'Resource of type users not found.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Resource of type users not found.',
+    );
   }
 
   // Check if password field is set for a reset.
   if (!isset($request['data']['password'])) {
-    error_print(400, 'Bad Request', 'Nothing to process.');
-
-    return FALSE;
+    return array(
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Nothing to process.',
+    );
   }
 
-  return TRUE;
+  return array();
 }

@@ -1,5 +1,6 @@
 <?php
 
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
  * This function handles the login request.
@@ -9,8 +10,9 @@
 function users_get() {
   $request = drupal_static('request');
 
-  if (!validate_users_get_request()) {
-    return;
+  $valid = validate_users_get_request();
+  if (!empty($valid)) {
+    return error_print($valid['code'], $valid['header'], $valid['msg']);
   }
 
   // Return data.
@@ -23,10 +25,9 @@ function users_get() {
 
     $user = user_load_by_name($name);
     if ($user) {
-      $user_full = entity_metadata_wrapper('user', $user);
-      array_push($users, $user_full);
+      array_push($users, $user);
 
-      check_user_indicia_id($user_full);
+      check_user_indicia_id($user);
     }
   }
   elseif (isset($request['email'])) {
@@ -36,10 +37,9 @@ function users_get() {
 
     $user = user_load_by_mail($email);
     if ($user) {
-      $user_full = entity_metadata_wrapper('user', $user);
-      array_push($users, $user_full);
+      array_push($users, $user);
 
-      check_user_indicia_id($user_full);
+      check_user_indicia_id($user);
     }
   }
   else {
@@ -47,8 +47,36 @@ function users_get() {
   }
 
   // Return the user's info to client.
-  drupal_add_http_header('Status', '200 OK');
-  return_users_details($users);
+  return return_users_details($users);
+}
+
+function return_users_details($user_full, $fullDetails = FALSE) {
+  indicia_api_log('Returning response.');
+
+  $data = [];
+
+  foreach ($user_full as $user) {
+    $userData = [
+      'type' => 'users',
+      'id' => (int) $user->id(),
+      'firstname' => $user->get(FIRSTNAME_FIELD)->value,
+      'secondname' => $user->get(SECONDNAME_FIELD)->value,
+    ];
+
+    if (ownAuthenticated($user, TRUE) || $fullDetails) {
+      $userData['name'] = $user->get('name')->value;
+      $userData['email'] = $user->get('mail')->value;
+      $userData['warehouse_id'] = (int) $user->get(INDICIA_ID_FIELD)->value;
+    }
+
+    array_push($data, $userData);
+  }
+
+  $output = ['data' => $data];
+  indicia_api_log(print_r($output, 1));
+
+  $headers = array('Status' => '200 OK');
+  return new JsonResponse($data, '200', $headers);
 }
 
 function validate_users_get_request() {
@@ -56,24 +84,32 @@ function validate_users_get_request() {
 
   // API key authorise.
   if (!indicia_api_authorise_key()) {
-    error_print(401, 'Unauthorized', 'Missing or incorrect API key.');
-
-    return FALSE;
+    return array(
+      'code' => 401,
+      'header' => 'Unauthorized',
+      'msg' => 'Missing or incorrect API key.',
+    );
   }
 
   // User authorise
   if (!indicia_api_authorise_user()) {
-    error_print(401, 'Unauthorized', 'Incorrect password or email.');
-
-    return FALSE;
+    return array(
+      'code' => 401,
+      'header' => 'Unauthorized',
+      'msg' => 'Incorrect password or email.',
+    );
   }
 
   // Check if the user filter is specified.
   if (!isset($request['name']) && !isset($request['email'])) {
     // Todo: remove this once the GET supports returning all users.
-    error_print(404, 'Not found', 'Full user listing is not supported yet.');
-    return;
+    return array(
+      'code' => 404,
+      'header' => 'Not found',
+      'msg' => 'Full user listing is not supported yet.',
+    );
   }
 
-  return TRUE;
+  return array();
 }
+
