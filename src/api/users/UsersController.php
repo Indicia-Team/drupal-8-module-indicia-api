@@ -20,13 +20,6 @@ class UsersController extends ControllerBase {
    */
   public function parse() {
 
-    // TODO: Need to move to be added to all responses
-    $headers = [
-      'Access-Control-Allow-Origin' => '*',
-      'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
-      'Access-Control-Allow-Headers' => 'authorization, x-api-key, content-type',
-    ];
-
     switch ($_SERVER['REQUEST_METHOD']) {
       case 'POST':
         $request = json_decode(file_get_contents('php://input'), TRUE);

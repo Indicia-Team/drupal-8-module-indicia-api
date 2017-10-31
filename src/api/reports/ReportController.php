@@ -21,13 +21,6 @@ class ReportController extends ControllerBase {
    */
   public function parse($report) {
 
-    // Need to move to be added to all responses
-    $headers = [
-      'Access-Control-Allow-Origin' => '*',
-      'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
-      'Access-Control-Allow-Headers' => 'authorization, x-api-key',
-    ];
-
     //Replace colons that were put in place of / as part of the UrlPathProcessor
     $report = str_replace(':','/', $report);
 

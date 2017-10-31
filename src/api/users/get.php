@@ -75,7 +75,12 @@ function return_users_details($user_full, $fullDetails = FALSE) {
   $output = ['data' => $data];
   indicia_api_log(print_r($output, 1));
 
-  $headers = array('Status' => '200 OK');
+  $headers = [
+    'Status' => '200 OK',
+    'Access-Control-Allow-Origin' => '*',
+    'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
+    'Access-Control-Allow-Headers' => 'authorization, x-api-key, content-type',
+  ];
   return new JsonResponse($data, '200', $headers);
 }
 

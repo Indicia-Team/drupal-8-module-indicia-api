@@ -522,7 +522,12 @@ function return_response($response) {
     $output = ['data' => $data];
     indicia_api_log(print_r($output, 1));
 
-    $headers = array('Status' => '201 Created');
+    $headers = [
+      'Status' => '201 Created',
+      'Access-Control-Allow-Origin' => '*',
+      'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
+      'Access-Control-Allow-Headers' => 'authorization, x-api-key, content-type',
+    ];
     return new JsonResponse($data, '201', $headers);
   }
 }

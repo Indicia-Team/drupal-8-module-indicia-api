@@ -366,7 +366,12 @@ function indicia_api_log($message, $severity = RfcLogLevel::NOTICE) {
  */
 
 function error_print($code, $status, $title, $errors = NULL) {
-  $headers = array('Status' => $code . ' ' . $status);
+  $headers = [
+    'Status' => $code . ' ' . $status,
+    'Access-Control-Allow-Origin' => '*',
+    'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
+    'Access-Control-Allow-Headers' => 'authorization, x-api-key',
+  ];
   if (is_null($errors)) {
     $data = [
       'errors' => [
@@ -378,7 +383,6 @@ function error_print($code, $status, $title, $errors = NULL) {
     ];
 
     indicia_api_log($title, RfcLogLevel::ERROR);
-    return new JsonResponse($data, $code, $headers);
   }
   else {
     indicia_api_log('Errors', RfcLogLevel::ERROR);
@@ -387,8 +391,8 @@ function error_print($code, $status, $title, $errors = NULL) {
     $data = [
       'errors' => $errors,
     ];
-    return new JsonResponse($data, $code, $headers);
   }
+  return new JsonResponse($data, $code, $headers);
 }
 
 
