@@ -4,9 +4,6 @@ namespace Drupal\indicia_api\api\Samples;
 
 use Drupal\Core\Controller\ControllerBase;
 
-//Should be able to remove at end
-use Symfony\Component\HttpFoundation\JsonResponse;
-
 require 'create.php';
 
 /**

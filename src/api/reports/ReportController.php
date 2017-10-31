@@ -3,11 +3,6 @@
 namespace Drupal\indicia_api\api\Reports;
 
 use Drupal\Core\Controller\ControllerBase;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Request;
-
-//Should be able to remove at end
-use Symfony\Component\HttpFoundation\JsonResponse;
 
 require 'get.php';
 

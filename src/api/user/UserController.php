@@ -3,8 +3,6 @@
 namespace Drupal\indicia_api\api\User;
 
 use Drupal\Core\Controller\ControllerBase;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Request;
 
 require 'get.php';
 require 'update_.php';

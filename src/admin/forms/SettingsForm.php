@@ -11,7 +11,6 @@ use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\Core\Form\FormBase;
-use Drupal\Component\Utility\Xss;
 use Drupal\Core\Form\FormStateInterface;
 
 class SettingsForm extends FormBase {

@@ -3,9 +3,6 @@
 namespace Drupal\indicia_api\api\Users;
 
 use Drupal\Core\Controller\ControllerBase;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\JsonResponse;
 
 require 'get.php';
 require 'create.php';
