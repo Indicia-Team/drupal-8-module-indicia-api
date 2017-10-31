@@ -19,3 +19,4 @@ For more information, see the [documentation](https://documenter.getpostman.com/
 - [ ] Check user activation API methods work
 - [ ] Confirm GET of reports works as expected, have checked with example in docs but not with full params
 - [ ] Confirm all attributes of submitting a sample works as before
+- [ ] Admin functionality to delete a key
