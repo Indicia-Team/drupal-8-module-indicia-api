@@ -294,7 +294,7 @@ function check_user_indicia_id($user_full) {
       $user_full->id());
 
     if (is_int($indicia_user_id)) {
-      $user_full->get(INDICIA_ID_FIELD)->set($indicia_user_id);
+      $user_full->set(INDICIA_ID_FIELD, $indicia_user_id);
       $user_full->save();
     }
   }
