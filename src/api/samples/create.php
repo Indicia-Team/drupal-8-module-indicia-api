@@ -528,7 +528,7 @@ function return_response($response) {
       'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
       'Access-Control-Allow-Headers' => 'authorization, x-api-key, content-type',
     ];
-    return new JsonResponse($data, '201', $headers);
+    return new JsonResponse($output, '201', $headers);
   }
 }
 

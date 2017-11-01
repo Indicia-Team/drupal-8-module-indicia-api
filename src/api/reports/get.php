@@ -142,5 +142,5 @@ function report_response($response, $params, $cache_loaded, $caching, $cache_tim
     'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
     'Access-Control-Allow-Headers' => 'authorization, x-api-key, content-type',
   ];
-  return new JsonResponse($data, '200', $headers);
+  return new JsonResponse($output, '200', $headers);
 }

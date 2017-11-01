@@ -80,5 +80,5 @@ function user_details($user, $fullDetails = FALSE) {
     'Access-Control-Allow-Headers' => 'authorization, x-api-key, content-type',
   ];
 
-  return new JsonResponse($data, '200', $headers);
+  return new JsonResponse($output, '200', $headers);
 }

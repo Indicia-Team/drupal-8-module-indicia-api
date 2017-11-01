@@ -81,7 +81,7 @@ function return_users_details($user_full, $fullDetails = FALSE) {
     'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
     'Access-Control-Allow-Headers' => 'authorization, x-api-key, content-type',
   ];
-  return new JsonResponse($data, '200', $headers);
+  return new JsonResponse($output, '200', $headers);
 }
 
 function validate_users_get_request() {
