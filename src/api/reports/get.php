@@ -33,8 +33,6 @@ function report_get($report) {
     return error_print($valid['code'], $valid['header'], $valid['msg']);
   }
 
-  $user = \Drupal::currentUser();
-
   $connection = iform_get_connection_details(NULL);
   $auth = data_entry_helper::get_read_auth($connection['website_id'], $connection['password']);
 
@@ -53,7 +51,7 @@ function report_get($report) {
   );
 
   if ($caching === 'false' || $request['caching'] === 'perUser') {
-    $user = \Drupal\user\Entity\User::load(\Drupal::currentUser()->id());
+    $user = indicia_api_authorise_user();
     $params['user_id'] = $user->get(INDICIA_ID_FIELD)->value;
   }
 
