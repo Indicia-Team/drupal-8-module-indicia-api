@@ -5,7 +5,7 @@
  * Contains \Drupal\iform\Form\SettingsForm.
  */
 
-namespace Drupal\indicia_api\Form;
+namespace Drupal\indicia_api\admin\forms;
 
 use Drupal\Core\Link;
 use Drupal\Core\Url;

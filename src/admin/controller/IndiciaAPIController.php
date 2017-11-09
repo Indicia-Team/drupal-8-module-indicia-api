@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\indicia_api\Controller;
+namespace Drupal\indicia_api\admin\controller;
 
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\Core\Controller\ControllerBase;
