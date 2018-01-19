@@ -600,6 +600,7 @@ function extract_media_response($model) {
 }
 
 function forward_post_to($entity, $submission = NULL, $files = NULL, $writeTokens = NULL) {
+
   $media = prepare_media_for_upload($files);
   $request = data_entry_helper::$base_url . "index.php/services/data/$entity";
   $postargs = 'submission=' . urlencode(json_encode($submission));
@@ -609,8 +610,8 @@ function forward_post_to($entity, $submission = NULL, $files = NULL, $writeToken
     $postargs .= '&' . $token . '=' . ($value === TRUE ? 'true' : ($value === FALSE ? 'false' : $value));
   }
 
-  $postargs .= '&user_id=' . hostsite_get_user_field('indicia_user_id');
-
+  $user = indicia_api_authorise_user();
+  $postargs .= '&user_id=' . $user->get(INDICIA_ID_FIELD)->value;
   // If there are images, we will send them after the main post,
   // so we need to persist the write nonce.
   if (count($media) > 0) {
