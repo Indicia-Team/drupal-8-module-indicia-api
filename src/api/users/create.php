@@ -135,22 +135,32 @@ function create_new_user() {
 
 
 function send_activation_email($new_user) {
-  return error_print(201, 'Yo!!', $new_user);
-  break;
-
   indicia_api_log('Sending activation email to ' . $new_user->getEmail());
   $request = drupal_static('request');
 
   $params = [
     'uid' => $new_user->id(),
-    'activation_token' => $new_user->get(ACTIVATION_FIELD)->value->get(LANGUAGE_NONE)->value->get('value')[0],
+    'activation_token' => $new_user->get(ACTIVATION_FIELD)->value,
   ];
-  drupal_mail('indicia_api',
-    'register',
-    $new_user->getEmail(),
-    user_preferred_language($new_user),
-    $params
+
+  $mailManager = \Drupal::service('plugin.manager.mail');
+  $result = $mailManager->mail(
+    'indicia_api', 
+    'register', 
+    $new_user->getEmail(), 
+    $new_user->getPreferredLangcode(), 
+    $params, 
+    NULL, 
+    true
   );
+
+  // TODO:
+  // if ($result['result'] !== true) {
+  //   error_print('There was a problem sending activation email.');
+  // }
+  // else {
+  //   error_print('Activation email was sent.');
+  // }
 }
 
 function user_details_after_create($user_full, $fullDetails = FALSE) {

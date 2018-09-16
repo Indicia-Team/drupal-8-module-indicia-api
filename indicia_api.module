@@ -453,12 +453,10 @@ function indicia_api_mail($key, &$message, $params) {
       $path = $base_url . '/' . API_PATH;
       $activation_url = "$path/users/{$params['uid']}/activate?" .
         "activationToken={$params['activation_token']}";
-      $subject = variable_get('indicia_api_registration_subject', "Welcome to !site");
-      $body = variable_get('indicia_api_registration_body',
-        "Activate your account by visiting the following page in your web browser: !activation_url");
 
-      $message['subject'] = t($subject, array("!site" => variable_get('site_name', "Indicia")));
-      $message['body'][] = t($body, array("!activation_url" => $activation_url));
+      $site_name = \Drupal::config('system.site')->get('name');
+      $message['subject'] = t("Welcome to $site_name");
+      $message['body'][] = t("Activate your account by visiting the following page in your web browser: $activation_url");
       break;
   }
 }
