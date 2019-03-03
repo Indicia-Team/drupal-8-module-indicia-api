@@ -136,7 +136,7 @@ function indicia_api_authorise_key() {
  *   Drupal user object, or FALSE if not authorised.
  */
 function indicia_api_authorise_user() {
-  if (!isset($_SERVER['PHP_AUTH_USER']) || !isset($_SERVER['PHP_AUTH_PW'])) {
+  if (empty($_SERVER['PHP_AUTH_USER']) || empty($_SERVER['PHP_AUTH_PW'])) {
     indicia_api_log('User or password was not sent');
     return FALSE;
   }
@@ -148,14 +148,17 @@ function indicia_api_authorise_user() {
   if(filter_var($_SERVER['PHP_AUTH_USER'], FILTER_VALIDATE_EMAIL)) {
     // Email.
     $existing_user = user_load_by_mail($name);
+    indicia_api_log('User loaded by mail');
 
     // In case the username is an email and username != email
     if (empty($existing_user)) {
       $existing_user = user_load_by_name($name);
+      indicia_api_log('User loaded by name');
     }
   }
   else {
     // Name.
+    indicia_api_log('User loaded by name');
     $existing_user = user_load_by_name($name);
   }
 
@@ -167,13 +170,17 @@ function indicia_api_authorise_user() {
   if (!\Drupal::service('user.auth')->authenticate($existing_user->get('name')->value, $password)) {
     indicia_api_log('User password was incorrect');
     return FALSE;
-  } elseif ($existing_user->status != 1) {
+  }
+
+  if (!$existing_user->isActive()) {
     indicia_api_log('User is not activated');
     // Check for activation.
     return FALSE;
   }
 
   indicia_api_log('Successfully found user');
+  $GLOBALS['user'] = $existing_user;
+
   return $existing_user;
 }
 

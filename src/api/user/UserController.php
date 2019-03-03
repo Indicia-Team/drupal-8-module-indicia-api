@@ -16,21 +16,12 @@ class UserController extends ControllerBase {
   /**
    * {@inheritdoc}
    */
-  public function parse($user = NULL, $activate = FALSE) {
+  public function parse($user = NULL) {
 
     switch ($_SERVER['REQUEST_METHOD']) {
       case 'GET':
         $request = $_GET;
         drupal_static('request', $request);
-
-        if ($activate) {
-          indicia_api_log('[User activate]');
-          indicia_api_log(print_r($request, 1));
-
-          // Only supports password reset at the moment.
-          user_activate($this->load_user($user));
-          return;
-        }
 
         indicia_api_log('[User get]');
         indicia_api_log(print_r($request, 1));
@@ -48,6 +39,30 @@ class UserController extends ControllerBase {
 
         // Only supports password reset at the moment.
         return user_update($this->load_user($user));
+        break;
+
+      case 'OPTIONS':
+        break;
+
+      default:
+        error_print(405, 'Method Not Allowed');
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function parseActivate($user = NULL) {
+
+    switch ($_SERVER['REQUEST_METHOD']) {
+      case 'GET':
+        $request = $_GET;
+        drupal_static('request', $request);
+
+        indicia_api_log('[User activate]');
+        indicia_api_log(print_r($request, 1));
+
+        return user_activate($this->load_user($user));
         break;
 
       case 'OPTIONS':

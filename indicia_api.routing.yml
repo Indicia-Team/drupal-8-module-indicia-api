@@ -18,6 +18,14 @@ indicia_api.user:
   requirements:
     _permission: 'access content'
     _method: 'GET|PUT'
+indicia_api.user_activate:
+  path: '/api/v1/users/{user}/activate'
+  defaults:
+    _controller: '\Drupal\indicia_api\api\user\UserController::parseActivate'
+    _title: 'User'
+  requirements:
+    _permission: 'access content'
+    _method: 'GET'
 indicia_api.users:
   path: '/api/v1/users'
   defaults:
