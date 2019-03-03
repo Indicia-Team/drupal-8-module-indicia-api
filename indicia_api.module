@@ -136,7 +136,8 @@ function indicia_api_authorise_key() {
  *   Drupal user object, or FALSE if not authorised.
  */
 function indicia_api_authorise_user() {
-  if (!isset($_SERVER['PHP_AUTH_USER']) || !isset($_SERVER['PHP_AUTH_USER'])) {
+  if (!isset($_SERVER['PHP_AUTH_USER']) || !isset($_SERVER['PHP_AUTH_PW'])) {
+    indicia_api_log('User or password was not sent');
     return FALSE;
   }
 
@@ -159,16 +160,20 @@ function indicia_api_authorise_user() {
   }
 
   if (empty($existing_user)) {
+    indicia_api_log('User was not found');
     return FALSE;
   }
 
   if (!\Drupal::service('user.auth')->authenticate($existing_user->get('name')->value, $password)) {
+    indicia_api_log('User password was incorrect');
     return FALSE;
   } elseif ($existing_user->status != 1) {
+    indicia_api_log('User is not activated');
     // Check for activation.
     return FALSE;
   }
 
+  indicia_api_log('Successfully found user');
   return $existing_user;
 }
 
