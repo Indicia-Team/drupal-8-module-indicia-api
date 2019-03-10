@@ -17,7 +17,7 @@ indicia_api.user:
     _title: 'User'
   requirements:
     _permission: 'access content'
-    _method: 'GET|PUT'
+  methods: [OPTIONS, GET, PUT]
 indicia_api.user_activate:
   path: '/api/v1/users/{user}/activate'
   defaults:
@@ -25,7 +25,7 @@ indicia_api.user_activate:
     _title: 'User'
   requirements:
     _permission: 'access content'
-    _method: 'GET'
+  methods: [OPTIONS, GET]
 indicia_api.users:
   path: '/api/v1/users'
   defaults:
@@ -33,7 +33,7 @@ indicia_api.users:
     _title: 'Users'
   requirements:
     _permission: 'access content'
-    _method: 'GET|POST'
+  methods: [OPTIONS, GET, POST]
 indicia_api.samples:
   path: '/api/v1/samples'
   defaults:
@@ -41,7 +41,7 @@ indicia_api.samples:
     _title: 'Samples'
   requirements:
     _permission: 'access content'
-    _method: 'POST'
+  methods: [OPTIONS, POST]
 indicia_api.reports:
   path: '/api/v1/reports/{report}'
   defaults:
@@ -49,3 +49,4 @@ indicia_api.reports:
     _title: 'Reports'
   requirements:
     _permission: 'access content'
+  methods: [OPTIONS, GET]
