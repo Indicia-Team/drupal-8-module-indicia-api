@@ -243,7 +243,7 @@ function indicia_api_get_user_id($email, $firstname, $secondname, $cms_id = NULL
 
   // Obtain nonce.
   $curl_check = data_entry_helper::http_post(
-    helper_config::$base_url . 'index.php/services/security/get_nonce',
+    data_entry_helper::$base_url . 'index.php/services/security/get_nonce',
     $postargs);
 
   if ($curl_check['result']) {
@@ -264,7 +264,7 @@ function indicia_api_get_user_id($email, $firstname, $secondname, $cms_id = NULL
 
     // Request the user id.
     $get_id_results = data_entry_helper::http_post(
-      helper_config::$base_url . 'index.php/services/user_identifier/get_user_id',
+      data_entry_helper::$base_url . 'index.php/services/user_identifier/get_user_id',
       $postargs,
       FALSE);
     indicia_api_log(print_r($get_id_results, 1));
