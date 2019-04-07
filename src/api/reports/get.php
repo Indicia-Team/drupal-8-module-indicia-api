@@ -36,7 +36,7 @@ function report_get($report) {
   $connection = iform_get_connection_details(NULL);
   $auth = data_entry_helper::get_read_auth($connection['website_id'], $connection['password']);
 
-  $url = helper_config::$base_url . 'index.php/services/report/requestReport';
+  $url = data_entry_helper::$base_url . 'index.php/services/report/requestReport';
 
   $caching = !empty($request['caching']) ? $request['caching'] : 'false';
   $cache_timeout = !empty($request['cacheTimeout']) ? $request['cacheTimeout'] : 3600;
