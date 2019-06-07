@@ -698,14 +698,10 @@ function prepare_media_for_upload($files = []) {
       data_entry_helper::$validation_errors[$key] = lang::get('file too big for warehouse');
     }
 
-
     $destination = $file['name'];
-    $interim_image_folder = isset(data_entry_helper::$interim_image_folder) ?
-      data_entry_helper::$interim_image_folder :
-      'upload/';
-    $uploadpath = data_entry_helper::relative_client_helper_path() . $interim_image_folder;
+    $uploadPath = data_entry_helper::getInterimImageFolder();
 
-    if (move_uploaded_file($file['tmp_name'], $uploadpath . $destination)) {
+    if (move_uploaded_file($file['tmp_name'], $uploadPath . $destination)) {
       $r[] = array(
         // Id is set only when saving over an existing record.
         // This will always be a new record.
