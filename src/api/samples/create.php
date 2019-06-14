@@ -655,7 +655,7 @@ function forward_post_to($entity, $submission = NULL, $files = NULL, $writeToken
         }
         else {
           $success = rename(
-            $interim_image_folder.$item['path'],
+            data_entry_helper::getInterimImageFolder('fullpath') . $item['path'],
             $final_image_folder.$item['path']
           );
         }
@@ -699,7 +699,7 @@ function prepare_media_for_upload($files = []) {
     }
 
     $destination = $file['name'];
-    $uploadPath = data_entry_helper::getInterimImageFolder();
+    $uploadPath = data_entry_helper::getInterimImageFolder('fullpath');
 
     if (move_uploaded_file($file['tmp_name'], $uploadPath . $destination)) {
       $r[] = array(
