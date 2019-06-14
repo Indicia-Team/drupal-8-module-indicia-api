@@ -647,7 +647,7 @@ function forward_post_to($entity, $submission = NULL, $files = NULL, $writeToken
       if ((empty($item['media_type']) || preg_match('/:Local$/', $item['media_type'])) &&
         empty($item['id'])) {
         if (!isset(data_entry_helper::$final_image_folder) ||
-          data_entry_helper::$final_image_folder=='warehouse') {
+            data_entry_helper::$final_image_folder === 'warehouse') {
           // Final location is the Warehouse
           // @todo Set PERSIST_AUTH false if last file
           indicia_api_log('Uploading ' . $item['path']);
@@ -656,7 +656,7 @@ function forward_post_to($entity, $submission = NULL, $files = NULL, $writeToken
         else {
           $success = rename(
             data_entry_helper::getInterimImageFolder('fullpath') . $item['path'],
-            $final_image_folder.$item['path']
+            data_entry_helper::$final_image_folder.$item['path']
           );
         }
 
