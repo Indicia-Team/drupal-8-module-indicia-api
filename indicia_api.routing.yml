@@ -1,52 +1,14 @@
-indicia_api.settings:
-  path: '/admin/config/indicia_api'
-  defaults:
-    _controller: '\Drupal\indicia_api\admin\controller\IndiciaAPIController::content'
-  requirements:
-    _permission: 'admin'
-indicia_api.configure_api:
-  path: '/admin/config/indicia_api/configure'
-  defaults:
-    _form: '\Drupal\indicia_api\admin\forms\SettingsForm'
-  requirements:
-    _permission: 'admin'
-indicia_api.user:
-  path: '/api/v1/users/{user}'
-  defaults:
-    _controller: '\Drupal\indicia_api\api\user\UserController::parse'
-    _title: 'User'
-  requirements:
-    _permission: 'access content'
-  methods: [OPTIONS, GET, PUT]
-indicia_api.user_activate:
-  path: '/api/v1/users/{user}/activate'
-  defaults:
-    _controller: '\Drupal\indicia_api\api\user\UserController::parseActivate'
-    _title: 'User'
-  requirements:
-    _permission: 'access content'
-  methods: [OPTIONS, GET]
-indicia_api.users:
-  path: '/api/v1/users'
-  defaults:
-    _controller: '\Drupal\indicia_api\api\users\UsersController::parse'
-    _title: 'Users'
-  requirements:
-    _permission: 'access content'
-  methods: [OPTIONS, GET, POST]
 indicia_api.samples:
-  path: '/api/v1/samples'
+  path: '/indicia/sample2'
   defaults:
-    _controller: '\Drupal\indicia_api\api\samples\SamplesController::parse'
-    _title: 'Samples'
-  requirements:
-    _permission: 'access content'
+    _controller: '\Drupal\indicia_api\SamplesController::parse'
+    _title: 'Sample'
   methods: [OPTIONS, POST]
-indicia_api.reports:
-  path: '/api/v1/reports/{report}'
-  defaults:
-    _controller: '\Drupal\indicia_api\api\reports\ReportController::parse'
-    _title: 'Reports'
   requirements:
     _permission: 'access content'
-  methods: [OPTIONS, GET]
+    _access: 'TRUE'
+    _format: 'json'
+  options:
+    _auth: ['oauth2']
+    no_cache: TRUE
+

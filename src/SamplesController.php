@@ -1,15 +1,105 @@
 <?php
 
+namespace Drupal\indicia_api;
+
+use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Logger\RfcLogLevel;
 use Symfony\Component\HttpFoundation\JsonResponse;
+
+iform_load_helpers(['data_entry_helper']);
+
+/**
+ * Logs messages if in log mode.
+ *
+ * Messages go to the PHP error log and the Drupal error log.
+ */
+function indicia_api_log($message, $severity = RfcLogLevel::NOTICE)
+{
+  // Obtain log mode indicator.
+  if (!isset($_SERVER['HTTP_X_API_KEY']) || empty($_SERVER['HTTP_X_API_KEY'])) {
+    return;
+  }
+
+  $key = $_SERVER['HTTP_X_API_KEY'];
+
+  $result = db_query("SELECT * FROM {indicia_api} WHERE api_key = :key", [
+    ':key' => $key,
+  ]);
+  $result_array = $result->fetchAll();
+  $log_mode = $result_array[0]->log;
+
+  switch ($log_mode) {
+    case RfcLogLevel::DEBUG:
+      error_log($message);
+      \Drupal::logger('indicia_api')->log($severity, $message);
+      break;
+
+    case RfcLogLevel::ERROR:
+      if ($severity === RfcLogLevel::ERROR) {
+        error_log($message);
+        \Drupal::logger('indicia_api')->log($severity, $message);
+      }
+      break;
+
+    default:
+  }
+}
+
+/**
+ * Prints to log and returns a json formatted error back to the client.
+ *
+ * @param int $code
+ *   Status code of the header.
+ * @param string $status
+ *   Status of the header.
+ * @param string $title
+ *   Title of the error.
+ * @param null $errors
+ *   If multiple errors then it can be passed as an array.
+ */
+
+function error_print($code, $status, $title, $errors = null)
+{
+  $headers = [
+    'Status' => $code . ' ' . $status,
+    'Access-Control-Allow-Origin' => '*',
+    'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
+    'Access-Control-Allow-Headers' => 'authorization, x-api-key',
+  ];
+  if (is_null($errors)) {
+    $data = [
+      'errors' => [
+        [
+          'status' => (string) $code,
+          'title' => $title,
+        ],
+      ],
+    ];
+
+    indicia_api_log($title, RfcLogLevel::ERROR);
+  } else {
+    indicia_api_log('Errors', RfcLogLevel::ERROR);
+    indicia_api_log(print_r($errors, 1), RfcLogLevel::ERROR);
+
+    $data = [
+      'errors' => $errors,
+    ];
+  }
+  return new JsonResponse($data, $code, $headers);
+}
 
 /**
  * Samples POST request handler.
  */
-function samples_create() {
+function samples_create()
+{
   $validate_request = validate_samples_create_request();
   if (!empty($validate_request)) {
-    return error_print($validate_request['code'], $validate_request['header'], $validate_request['msg']);
+    return error_print(
+      $validate_request['code'],
+      $validate_request['header'],
+      $validate_request['msg']
+    );
   }
 
   $request = drupal_static('request');
@@ -17,11 +107,17 @@ function samples_create() {
 
   // Get auth.
   try {
-    $connection = iform_get_connection_details(NULL);
-    $auth = data_entry_helper::get_read_write_auth($connection['website_id'], $connection['password']);
-  }
-  catch (Exception $e) {
-    return error_print(502, 'Bad Gateway', 'Something went wrong in obtaining nonce.');
+    $connection = iform_get_connection_details(null);
+    $auth = data_entry_helper::get_read_write_auth(
+      $connection['website_id'],
+      $connection['password']
+    );
+  } catch (Exception $e) {
+    return error_print(
+      502,
+      'Bad Gateway',
+      'Something went wrong in obtaining nonce.'
+    );
   }
 
   // Construct post parameter array.
@@ -30,11 +126,16 @@ function samples_create() {
   // Check for duplicates.
   $dupes = has_duplicates($processed['model']);
   if (!empty($dupes)) {
-    return error_print(409, 'Conflict', NULL, $dupes);
+    return error_print(409, 'Conflict', null, $dupes);
   }
 
   // Send record to indicia.
-  $response = forward_post_to('save', $processed['model'], $processed['files'], $auth['write_tokens']);
+  $response = forward_post_to(
+    'save',
+    $processed['model'],
+    $processed['files'],
+    $auth['write_tokens']
+  );
 
   // Return response to client.
   return return_response($response);
@@ -49,7 +150,8 @@ function samples_create() {
  * @return array
  *   Returns the new record model.
  */
-function process_parameters($data, $connection) {
+function process_parameters($data, $connection)
+{
   $model = [
     "id" => "sample",
     "fields" => [],
@@ -108,7 +210,7 @@ function process_parameters($data, $connection) {
 
   if (isset($data['media']) && is_array($data['media'])) {
     foreach ($data['media'] as $media) {
-      $processed = process_media_parameters($media, FALSE);
+      $processed = process_media_parameters($media, false);
       array_push($model['subModels'], [
         'fkId' => 'sample_id',
         'model' => $processed['model'],
@@ -122,10 +224,11 @@ function process_parameters($data, $connection) {
   indicia_api_log(print_r($data, 1));
   indicia_api_log(print_r($model, 1));
   indicia_api_log(print_r($files, 1));
-  return [ 'model' => $model, 'files' => $files];
+  return ['model' => $model, 'files' => $files];
 }
 
-function process_occurrence_parameters($data, $connection) {
+function process_occurrence_parameters($data, $connection)
+{
   $model = [
     "id" => "occurrence",
     "fields" => [],
@@ -150,15 +253,14 @@ function process_occurrence_parameters($data, $connection) {
   $model['fields']['website_id'] = ['value' => $connection['website_id']];
   if (isset($data['training'])) {
     $model['fields']['training'] = [
-      'value' => ($data['training'] ? 't' : 'f'),
+      'value' => $data['training'] ? 't' : 'f',
     ];
   }
 
   $model['fields']['zero_abundance'] = ['value' => 'f'];
   if (isset($data['record_status'])) {
     $model['fields']['record_status'] = ['value' => $data['record_status']];
-  }
-  else {
+  } else {
     // Mark the record complete by default.
     $model['fields']['record_status'] = ['value' => 'C'];
   }
@@ -176,7 +278,9 @@ function process_occurrence_parameters($data, $connection) {
   }
 
   if (isset($data['sensitivity_precision'])) {
-    $model['fields']['sensitivity_precision'] = ['value' => $data['sensitivity_precision']];
+    $model['fields']['sensitivity_precision'] = [
+      'value' => $data['sensitivity_precision'],
+    ];
   }
 
   if (isset($data['external_key'])) {
@@ -199,11 +303,11 @@ function process_occurrence_parameters($data, $connection) {
   indicia_api_log('Processed occurrence parameters.');
   indicia_api_log(print_r($data, 1));
   indicia_api_log(print_r($model, 1));
-  return [ 'model' => $model, 'files' => $files];
+  return ['model' => $model, 'files' => $files];
 }
 
-
-function process_media_parameters($data, $occurrence = TRUE) {
+function process_media_parameters($data, $occurrence = true)
+{
   $model = [
     "id" => $occurrence ? "occurrence_medium" : 'sample_medium',
     "fields" => [],
@@ -221,7 +325,7 @@ function process_media_parameters($data, $occurrence = TRUE) {
   indicia_api_log('Processed media parameters.');
   indicia_api_log(print_r($data, 1));
   indicia_api_log(print_r($model, 1));
-  return [ 'model' => $model, 'file' => $file];
+  return ['model' => $model, 'file' => $file];
 }
 
 /**
@@ -235,7 +339,8 @@ function process_media_parameters($data, $occurrence = TRUE) {
  * @return bool
  *   Returns true if has duplicates.
  */
-function has_duplicates($submission) {
+function has_duplicates($submission)
+{
   indicia_api_log('Searching for duplicates.');
 
   $duplicates = find_duplicates($submission);
@@ -255,7 +360,7 @@ function has_duplicates($submission) {
     }
     return $errors;
   }
-  return array();
+  return [];
 }
 
 /**
@@ -267,29 +372,36 @@ function has_duplicates($submission) {
  * @return array
  *   Returns an array of duplicates.
  */
-function find_duplicates($submission) {
-  $connection = iform_get_connection_details(NULL);
-  $auth = data_entry_helper::get_read_auth($connection['website_id'], $connection['password']);
+function find_duplicates($submission)
+{
+  $connection = iform_get_connection_details(null);
+  $auth = data_entry_helper::get_read_auth(
+    $connection['website_id'],
+    $connection['password']
+  );
 
   $duplicates = [];
   if (isset($submission['subModels']) && is_array($submission['subModels'])) {
     // don't run this intensive query if big model: todo - optimize and enable
     if (sizeof($submission['subModels']) > 5) {
-      indicia_api_log('Submission is too big: skipping the search for duplicates.');
+      indicia_api_log(
+        'Submission is too big: skipping the search for duplicates.'
+      );
       return $duplicates;
     }
 
     foreach ($submission['subModels'] as $occurrence) {
       if (isset($occurrence['model']['fields']['external_key']['value'])) {
-        $existing = data_entry_helper::get_population_data(array(
+        $existing = data_entry_helper::get_population_data([
           'table' => 'occurrence',
           'extraParams' => array_merge($auth, [
             'view' => 'detail',
-            'external_key' => $occurrence['model']['fields']['external_key']['value'],
+            'external_key' =>
+              $occurrence['model']['fields']['external_key']['value'],
           ]),
           // Forces a load from the db rather than local cache.
-          'nocache' => TRUE,
-        ));
+          'nocache' => true,
+        ]);
         $duplicates = array_merge($duplicates, $existing);
       }
     }
@@ -303,53 +415,46 @@ function find_duplicates($submission) {
  * @return bool
  *   True if the request is valid
  */
-function validate_samples_create_request() {
+function validate_samples_create_request()
+{
   $request = drupal_static('request');
-
-  // Reject submissions with an incorrect secret (or instances where secret is
-  // Not set).
-  if (!indicia_api_authorise_key()) {
-    return array(
-      'code' => 401,
-      'header' => 'Unauthorized',
-      'msg' => 'Missing or incorrect API key.',
-    );
-  }
+  $user = drupal_static('user');
 
   if (empty($request) || !isset($request['data'])) {
-    return array(
+    return [
       'code' => 400,
       'header' => 'Bad Request',
       'msg' => 'Missing or invalid submission.',
-    );
+    ];
   }
 
-  $user_authenticated = !empty($_SERVER['PHP_AUTH_USER']) && indicia_api_authorise_user();
-  $anonymous_authenticated = empty($_SERVER['PHP_AUTH_USER']) && authorise_anonymous();
+  $user_authenticated = $user->isAuthenticated();
 
-  if (!$user_authenticated && !$anonymous_authenticated) {
-      return array(
-          'code' => 400,
-          'header' => 'Bad Request',
-          'msg' => 'Could not find/authenticate user.',
-        );
+  if (!$user_authenticated) {
+    return [
+      'code' => 400,
+      'header' => 'Bad Request',
+      'msg' => 'Could not find/authenticate user.',
+    ];
   }
 
-  if (!isset($request['data']['type']) || $request['data']['type'] != 'samples') {
-    return array(
+  if (
+    !isset($request['data']['type']) ||
+    $request['data']['type'] != 'samples'
+  ) {
+    return [
       'code' => 400,
       'header' => 'Bad Request',
       'msg' => 'Resource of type samples not found.',
-    );
+    ];
   }
 
-
   if (!isset($request['data']['survey_id'])) {
-    return array(
+    return [
       'code' => 400,
       'header' => 'Bad Request',
       'msg' => 'Missing or incorrect survey id.',
-    );
+    ];
   }
 
   // Validate sample.
@@ -358,75 +463,31 @@ function validate_samples_create_request() {
     return $validate_sample;
   }
 
-  return array();
+  return [];
 }
 
-function authorise_anonymous() {
-  $key = $_SERVER['HTTP_X_API_KEY'];
-
-  // Check if matches API anonymous account.
-  $result = db_query(
-    "SELECT * FROM {indicia_api} WHERE api_key = :key",
-    array(':key' => $key));
-
-  $result_array = $result->fetchAll();
-
-  if (count($result_array) !== 1) {
-    return FALSE;
-  }
-
-  if (!is_numeric($result_array[0]->anonymous_user)) {
-    indicia_api_log('Provided anonymous user ID is not numeric.',
-      NULL, RfcLogLevel::ERROR);
-    return FALSE;
-  }
-
-  $anonymous_user_id = $result_array[0]->anonymous_user;
-
-  if ($anonymous_user_id == -1) {
-    indicia_api_log('Anonymous recording is not allowed.',
-      NULL, RfcLogLevel::ERROR);
-    return FALSE;
-  }
-
-  // Find user.
-  $existing_user = user_load($anonymous_user_id);
-
-  if (empty($existing_user)) {
-    indicia_api_log('Not found anonymous user with ID ' . $anonymous_user_id . '.',
-      NULL, RfcLogLevel::ERROR);
-    return FALSE;
-  }
-
-  indicia_api_log('Found anonymous user with ID ' . $anonymous_user_id . '.');
-
-  // Assign this user to gobal user var so that it can be added to the indicia
-  // submission.
-  $GLOBALS['user'] = $existing_user;
-  return TRUE;
-}
-
-function validate_sample($model) {
+function validate_sample($model)
+{
   if (!isset($model['fields']['date'])) {
-    return array(
+    return [
       'code' => 400,
       'header' => 'Bad Request',
       'msg' => 'Missing sample date.',
-    );
+    ];
   }
   if (!isset($model['fields']['entered_sref'])) {
-    return array(
+    return [
       'code' => 400,
       'header' => 'Bad Request',
       'msg' => 'Missing sample entered_sref.',
-    );
+    ];
   }
   if (!isset($model['fields']['entered_sref_system'])) {
-    return array(
+    return [
       'code' => 400,
       'header' => 'Bad Request',
       'msg' => 'Missing sample entered_sref_system.',
-    );
+    ];
   }
 
   if (isset($model['samples']) && is_array($model['samples'])) {
@@ -456,16 +517,17 @@ function validate_sample($model) {
     }
   }
 
-  return array();
+  return [];
 }
 
-function validate_occurrence($model) {
+function validate_occurrence($model)
+{
   if (!isset($model['fields']['taxa_taxon_list_id'])) {
-    return array(
+    return [
       'code' => 400,
       'header' => 'Bad Request',
       'msg' => 'Missing occurrence taxa_taxon_list_id.',
-    );
+    ];
   }
   if (isset($model['media']) && is_array($model['media'])) {
     foreach ($model['media'] as $media) {
@@ -476,31 +538,32 @@ function validate_occurrence($model) {
     }
   }
 
-  return array();
+  return [];
 }
 
-
-function validate_media($model) {
+function validate_media($model)
+{
   if (!isset($model['name'])) {
-    return array(
+    return [
       'code' => 400,
       'header' => 'Bad Request',
       'msg' => 'Missing media name.',
-    );
+    ];
   }
 
   if (!isset($_FILES[$model['name']])) {
-    return array(
+    return [
       'code' => 400,
       'header' => 'Bad Request',
       'msg' => 'Missing media.',
-    );
+    ];
   }
 
-  return array();
+  return [];
 }
 
-function return_response($response) {
+function return_response($response)
+{
   indicia_api_log('Returning response.');
 
   if (isset($response['error'])) {
@@ -512,13 +575,11 @@ function return_response($response) {
           'description' => $error,
         ]);
       }
-      return error_print(400, 'Bad Request', NULL, $errors);
-    }
-    else {
+      return error_print(400, 'Bad Request', null, $errors);
+    } else {
       return error_print(400, 'Bad Request', $response['error']);
     }
-  }
-  else {
+  } else {
     // Created.
     $data = extract_sample_response($response['struct']);
 
@@ -529,13 +590,15 @@ function return_response($response) {
       'Status' => '201 Created',
       'Access-Control-Allow-Origin' => '*',
       'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
-      'Access-Control-Allow-Headers' => 'authorization, x-api-key, content-type',
+      'Access-Control-Allow-Headers' =>
+        'authorization, x-api-key, content-type',
     ];
     return new JsonResponse($output, '201', $headers);
   }
 }
 
-function extract_sample_response($model) {
+function extract_sample_response($model)
+{
   $data = [
     'id' => (int) $model['id'],
     'external_key' => $model['external_key'],
@@ -546,7 +609,9 @@ function extract_sample_response($model) {
     foreach ($model['children'] as $child) {
       switch ($child['model']) {
         case 'occurrence':
-          $data['occurrences'] = empty($data['occurrences']) ? [] : $data['occurrences'];
+          $data['occurrences'] = empty($data['occurrences'])
+            ? []
+            : $data['occurrences'];
           array_push($data['occurrences'], extract_occurrence_response($child));
           break;
 
@@ -567,7 +632,8 @@ function extract_sample_response($model) {
   return $data;
 }
 
-function extract_occurrence_response($model) {
+function extract_occurrence_response($model)
+{
   $data = [
     'id' => (int) $model['id'],
     'external_key' => $model['external_key'],
@@ -591,7 +657,8 @@ function extract_occurrence_response($model) {
   return $data;
 }
 
-function extract_media_response($model) {
+function extract_media_response($model)
+{
   $data = [
     'id' => (int) $model['id'],
     // Images don't store external_keys yet.
@@ -602,14 +669,23 @@ function extract_media_response($model) {
   return $data;
 }
 
-function forward_post_to($entity, $submission = NULL, $files = NULL, $writeTokens = NULL) {
+function forward_post_to(
+  $entity,
+  $submission = null,
+  $files = null,
+  $writeTokens = null
+) {
   $media = prepare_media_for_upload($files);
   $request = data_entry_helper::$base_url . "index.php/services/data/$entity";
   $postargs = 'submission=' . urlencode(json_encode($submission));
 
   // Pass through the authentication tokens as POST data.
   foreach ($writeTokens as $token => $value) {
-    $postargs .= '&' . $token . '=' . ($value === TRUE ? 'true' : ($value === FALSE ? 'false' : $value));
+    $postargs .=
+      '&' .
+      $token .
+      '=' .
+      ($value === true ? 'true' : ($value === false ? 'false' : $value));
   }
 
   $user = $GLOBALS['user'];
@@ -622,50 +698,63 @@ function forward_post_to($entity, $submission = NULL, $files = NULL, $writeToken
     $postargs .= '&persist_auth=true';
   }
   indicia_api_log('Sending new model to warehouse.');
-  $response = data_entry_helper::http_post($request, $postargs, FALSE);
+  $response = data_entry_helper::http_post($request, $postargs, false);
 
   // The response should be in JSON if it worked.
-  $output = json_decode($response['output'], TRUE);
+  $output = json_decode($response['output'], true);
 
   // If this is not JSON, it is an error, so just return it as is.
   if (!$output) {
-    indicia_api_log('Problem occurred with the submission.', NULL, RfcLogLevel::ERROR);
+    indicia_api_log(
+      'Problem occurred with the submission.',
+      null,
+      RfcLogLevel::ERROR
+    );
     $output = $response['output'];
   }
 
-  if (is_array($output) && array_key_exists('success', $output))  {
+  if (is_array($output) && array_key_exists('success', $output)) {
     if (sizeof($media) > 0) {
-      indicia_api_log('Uploading ' . sizeof($media) .' media files.');
+      indicia_api_log('Uploading ' . sizeof($media) . ' media files.');
     }
 
     // Submission succeeded.
     // So we also need to move the images to the final location.
-    $image_overall_success = TRUE;
-    $image_errors = array();
-    foreach ((array)$media as $item) {
+    $image_overall_success = true;
+    $image_errors = [];
+    foreach ((array) $media as $item) {
       // No need to resend an existing image, or a media link, just local files.
-      if ((empty($item['media_type']) || preg_match('/:Local$/', $item['media_type'])) &&
-        empty($item['id'])) {
-        if (!isset(data_entry_helper::$final_image_folder) ||
-            data_entry_helper::$final_image_folder === 'warehouse') {
+      if (
+        (empty($item['media_type']) ||
+          preg_match('/:Local$/', $item['media_type'])) &&
+        empty($item['id'])
+      ) {
+        if (
+          !isset(data_entry_helper::$final_image_folder) ||
+          data_entry_helper::$final_image_folder === 'warehouse'
+        ) {
           // Final location is the Warehouse
           // @todo Set PERSIST_AUTH false if last file
           indicia_api_log('Uploading ' . $item['path']);
-          $success = data_entry_helper::send_file_to_warehouse($item['path'], TRUE, $writeTokens);
-        }
-        else {
+          $success = data_entry_helper::send_file_to_warehouse(
+            $item['path'],
+            true,
+            $writeTokens
+          );
+        } else {
           $success = rename(
-            data_entry_helper::getInterimImageFolder('fullpath') . $item['path'],
-            data_entry_helper::$final_image_folder.$item['path']
+            data_entry_helper::getInterimImageFolder('fullpath') .
+              $item['path'],
+            data_entry_helper::$final_image_folder . $item['path']
           );
         }
 
-        if ($success !== TRUE) {
-          indicia_api_log('Errors', NULL, RfcLogLevel::ERROR);
-          indicia_api_log(print_r($success, 1), NULL, RfcLogLevel::ERROR);
+        if ($success !== true) {
+          indicia_api_log('Errors', null, RfcLogLevel::ERROR);
+          indicia_api_log(print_r($success, 1), null, RfcLogLevel::ERROR);
 
           // Record all files that fail to move successfully.
-          $image_overall_success = FALSE;
+          $image_overall_success = false;
           $image_errors[] = $success;
         }
       }
@@ -674,45 +763,96 @@ function forward_post_to($entity, $submission = NULL, $files = NULL, $writeToken
       // Report any file transfer failures.
       $error = lang::get('submit ok but file transfer failed') . '<br/>';
       $error .= implode('<br/>', $image_errors);
-      $output = array('error' => $error);
+      $output = ['error' => $error];
     }
   }
   return $output;
 }
 
-function prepare_media_for_upload($files = []) {
+function prepare_media_for_upload($files = [])
+{
   indicia_api_log('Preparing media for upload.');
 
   $r = [];
   foreach ($files as $key => $file) {
     if ($file['error'] == '1') {
       // File too big error dur to php.ini setting.
-      if (data_entry_helper::$validation_errors === NULL) {
-        data_entry_helper::$validation_errors = array();
+      if (data_entry_helper::$validation_errors === null) {
+        data_entry_helper::$validation_errors = [];
       }
-      data_entry_helper::$validation_errors[$key] = lang::get('file too big for webserver');
-    }
-    elseif (!data_entry_helper::check_upload_size($file)) {
+      data_entry_helper::$validation_errors[$key] = lang::get(
+        'file too big for webserver'
+      );
+    } elseif (!data_entry_helper::check_upload_size($file)) {
       // Warehouse may still block it.
-      if (data_entry_helper::$validation_errors==NULL) data_entry_helper::$validation_errors = array();
-      data_entry_helper::$validation_errors[$key] = lang::get('file too big for warehouse');
+      if (data_entry_helper::$validation_errors == null) {
+        data_entry_helper::$validation_errors = [];
+      }
+      data_entry_helper::$validation_errors[$key] = lang::get(
+        'file too big for warehouse'
+      );
     }
 
     $destination = $file['name'];
     $uploadPath = data_entry_helper::getInterimImageFolder('fullpath');
 
     if (move_uploaded_file($file['tmp_name'], $uploadPath . $destination)) {
-      $r[] = array(
+      $r[] = [
         // Id is set only when saving over an existing record.
         // This will always be a new record.
         'id' => '',
         'path' => $destination,
         'caption' => '',
+      ];
+      $pathField = str_replace(
+        [':medium', ':image'],
+        ['_medium:path', '_image:path'],
+        $key
       );
-      $pathField = str_replace(array(':medium',':image'), array('_medium:path','_image:path'), $key);
       $_POST[$pathField] = $destination;
     }
-
   }
   return $r;
+}
+
+/**
+ * The Samples controller.
+ */
+class SamplesController extends ControllerBase
+{
+  /**
+   * {@inheritdoc}
+   */
+  public function parse()
+  {
+    switch ($_SERVER['REQUEST_METHOD']) {
+      case 'POST':
+        \Drupal::logger('indicia_api')->notice('[Samples create]');
+
+        $request = json_decode(file_get_contents('php://input'), true);
+
+        $user = $this->currentUser();
+        drupal_static('user', $user);
+
+        // Support form-data with files attached.
+        if (empty($request) && !empty($_POST['submission'])) {
+          $submission = json_decode($_POST['submission'], true);
+          $request = $submission;
+        }
+
+        drupal_static('request', $request);
+
+        return samples_create();
+
+      case 'OPTIONS':
+        break;
+
+      default:
+        return error_print(
+          405,
+          'Method Not Allowed',
+          $_SERVER['REQUEST_METHOD']
+        );
+    }
+  }
 }

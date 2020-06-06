@@ -1,9 +1,7 @@
-name: Indicia API
-description: A module which allows to connect to Indicia's warehouse API and improves drupal API services.
-core: 8.x
-version: "8.x-1.0"
-package: "Indicia"
+name: Indicia API v2
+description: A module which allows to connect to Indicia's warehouse API.
+package: Indicia
 type: module
+core: 8.x
 dependencies:
   - iform
-  - entity

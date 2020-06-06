@@ -1,6 +1,0 @@
-indicia_api.settings:
-  title: 'Indicia API'
-  description: 'Settings page for the Indicia API module'
-  parent: iform.admin_config_iform
-  route_name: indicia_api.settings
-  weight: 0

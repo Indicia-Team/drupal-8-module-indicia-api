@@ -1,0 +1,8 @@
+id: indicia_report_resource
+granularity: method
+configuration:
+  GET:
+    supported_formats:
+      - json
+    supported_auth:
+      - basic_auth
