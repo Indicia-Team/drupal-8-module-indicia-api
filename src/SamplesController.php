@@ -6,6 +6,9 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Logger\RfcLogLevel;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
+
+const INDICIA_ID_FIELD = 'field_indicia_user_id';
+
 iform_load_helpers(['data_entry_helper']);
 
 /**
@@ -108,7 +111,7 @@ function samples_create()
   // Get auth.
   try {
     $connection = iform_get_connection_details(null);
-    $auth = data_entry_helper::get_read_write_auth(
+    $auth = \data_entry_helper::get_read_write_auth(
       $connection['website_id'],
       $connection['password']
     );
@@ -375,7 +378,7 @@ function has_duplicates($submission)
 function find_duplicates($submission)
 {
   $connection = iform_get_connection_details(null);
-  $auth = data_entry_helper::get_read_auth(
+  $auth = \data_entry_helper::get_read_auth(
     $connection['website_id'],
     $connection['password']
   );
@@ -392,7 +395,7 @@ function find_duplicates($submission)
 
     foreach ($submission['subModels'] as $occurrence) {
       if (isset($occurrence['model']['fields']['external_key']['value'])) {
-        $existing = data_entry_helper::get_population_data([
+        $existing = \data_entry_helper::get_population_data([
           'table' => 'occurrence',
           'extraParams' => array_merge($auth, [
             'view' => 'detail',
@@ -676,7 +679,7 @@ function forward_post_to(
   $writeTokens = null
 ) {
   $media = prepare_media_for_upload($files);
-  $request = data_entry_helper::$base_url . "index.php/services/data/$entity";
+  $request = \data_entry_helper::$base_url . "index.php/services/data/$entity";
   $postargs = 'submission=' . urlencode(json_encode($submission));
 
   // Pass through the authentication tokens as POST data.
@@ -688,8 +691,13 @@ function forward_post_to(
       ($value === true ? 'true' : ($value === false ? 'false' : $value));
   }
 
-  $user = $GLOBALS['user'];
-  indicia_api_log('indicia_user_id ' . $user->get(INDICIA_ID_FIELD)->value);
+  $user = \Drupal::entityTypeManager()
+        ->getStorage('user')
+        ->load(drupal_static('user')->id());
+
+  $userWarehouseId = $user->get(INDICIA_ID_FIELD)->value;
+  
+  indicia_api_log('indicia_user_id ' . $userWarehouseId);
 
   $postargs .= '&user_id=' . $user->get(INDICIA_ID_FIELD)->value;
   // If there are images, we will send them after the main post,
@@ -698,7 +706,7 @@ function forward_post_to(
     $postargs .= '&persist_auth=true';
   }
   indicia_api_log('Sending new model to warehouse.');
-  $response = data_entry_helper::http_post($request, $postargs, false);
+  $response = \data_entry_helper::http_post($request, $postargs, false);
 
   // The response should be in JSON if it worked.
   $output = json_decode($response['output'], true);
@@ -730,22 +738,22 @@ function forward_post_to(
         empty($item['id'])
       ) {
         if (
-          !isset(data_entry_helper::$final_image_folder) ||
-          data_entry_helper::$final_image_folder === 'warehouse'
+          !isset(\data_entry_helper::$final_image_folder) ||
+          \data_entry_helper::$final_image_folder === 'warehouse'
         ) {
           // Final location is the Warehouse
           // @todo Set PERSIST_AUTH false if last file
           indicia_api_log('Uploading ' . $item['path']);
-          $success = data_entry_helper::send_file_to_warehouse(
+          $success = \data_entry_helper::send_file_to_warehouse(
             $item['path'],
             true,
             $writeTokens
           );
         } else {
           $success = rename(
-            data_entry_helper::getInterimImageFolder('fullpath') .
+            \data_entry_helper::getInterimImageFolder('fullpath') .
               $item['path'],
-            data_entry_helper::$final_image_folder . $item['path']
+            \data_entry_helper::$final_image_folder . $item['path']
           );
         }
 
@@ -777,24 +785,24 @@ function prepare_media_for_upload($files = [])
   foreach ($files as $key => $file) {
     if ($file['error'] == '1') {
       // File too big error dur to php.ini setting.
-      if (data_entry_helper::$validation_errors === null) {
-        data_entry_helper::$validation_errors = [];
+      if (\data_entry_helper::$validation_errors === null) {
+        \data_entry_helper::$validation_errors = [];
       }
-      data_entry_helper::$validation_errors[$key] = lang::get(
+      \data_entry_helper::$validation_errors[$key] = lang::get(
         'file too big for webserver'
       );
-    } elseif (!data_entry_helper::check_upload_size($file)) {
+    } elseif (!\data_entry_helper::check_upload_size($file)) {
       // Warehouse may still block it.
-      if (data_entry_helper::$validation_errors == null) {
-        data_entry_helper::$validation_errors = [];
+      if (\data_entry_helper::$validation_errors == null) {
+        \data_entry_helper::$validation_errors = [];
       }
-      data_entry_helper::$validation_errors[$key] = lang::get(
+      \data_entry_helper::$validation_errors[$key] = lang::get(
         'file too big for warehouse'
       );
     }
 
     $destination = $file['name'];
-    $uploadPath = data_entry_helper::getInterimImageFolder('fullpath');
+    $uploadPath = \data_entry_helper::getInterimImageFolder('fullpath');
 
     if (move_uploaded_file($file['tmp_name'], $uploadPath . $destination)) {
       $r[] = [
