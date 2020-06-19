@@ -1,0 +1,18 @@
+<?php
+
+use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
+
+const INDICIA_ID_FIELD = 'field_indicia_user_id';
+
+function indicia_api_simple_oauth_private_claims_alter(array &$data, AccessTokenEntityInterface $token) {
+  $user = \Drupal::entityTypeManager()
+        ->getStorage('user')
+        ->load($token->getUserIdentifier());
+
+  global $base_url;
+
+  $data ['iss'] = $base_url;
+	$data['email'] = $user->get('mail')->value;
+  $data['email_verified'] = !!$user->status;
+  $data['https://indicia/user/id'] = $user->get(INDICIA_ID_FIELD)->value;
+}
