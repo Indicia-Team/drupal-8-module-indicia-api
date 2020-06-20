@@ -18,34 +18,7 @@ iform_load_helpers(['data_entry_helper']);
  */
 function indicia_api_log($message, $severity = RfcLogLevel::NOTICE)
 {
-  // Obtain log mode indicator.
-  if (!isset($_SERVER['HTTP_X_API_KEY']) || empty($_SERVER['HTTP_X_API_KEY'])) {
-    return;
-  }
-
-  $key = $_SERVER['HTTP_X_API_KEY'];
-
-  $result = db_query("SELECT * FROM {indicia_api} WHERE api_key = :key", [
-    ':key' => $key,
-  ]);
-  $result_array = $result->fetchAll();
-  $log_mode = $result_array[0]->log;
-
-  switch ($log_mode) {
-    case RfcLogLevel::DEBUG:
-      error_log($message);
-      \Drupal::logger('indicia_api')->log($severity, $message);
-      break;
-
-    case RfcLogLevel::ERROR:
-      if ($severity === RfcLogLevel::ERROR) {
-        error_log($message);
-        \Drupal::logger('indicia_api')->log($severity, $message);
-      }
-      break;
-
-    default:
-  }
+  \Drupal::logger('indicia_api')->log($severity, $message);
 }
 
 /**
