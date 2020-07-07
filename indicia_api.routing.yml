@@ -1,5 +1,5 @@
 indicia_api.samples:
-  path: '/indicia/sample2'
+  path: '/indicia/sample'
   defaults:
     _controller: '\Drupal\indicia_api\SamplesController::parse'
     _title: 'Sample'
