@@ -11,8 +11,22 @@ function indicia_api_simple_oauth_private_claims_alter(array &$data, AccessToken
 
   global $base_url;
 
-  $data ['iss'] = $base_url;
+  $data['iss'] = $base_url;
 	$data['email'] = $user->get('mail')->value;
-  $data['email_verified'] = !!$user->status;
-  $data['https://indicia/user/id'] = $user->get(INDICIA_ID_FIELD)->value;
+  $data['email_verified'] = !$user->isBlocked();
+
+  // attach custom user entity fields
+  $data['https://indicia/user/id'] = $user->get('field_indicia_user_id')->value;
+
+  if ($user->hasField('field_full_name')) {
+    $data['field_full_name'] = $user->get('field_full_name')->value;
+  }
+
+  if ($user->hasField('field_first_name')) {
+    $data['field_first_name'] = $user->get('field_first_name')->value;
+  }
+
+  if ($user->hasField('field_last_name')) {
+    $data['field_last_name'] = $user->get('field_last_name')->value;
+  }
 }
