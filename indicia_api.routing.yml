@@ -1,7 +1,7 @@
 indicia_api.samples:
-  path: '/indicia/sample'
+  path: '/api/v2/samples'
   defaults:
-    _controller: '\Drupal\indicia_api\SamplesController::parse'
+    _controller: '\Drupal\indicia_api\SampleController::parse'
     _title: 'Sample'
   methods: [OPTIONS, POST]
   requirements:
@@ -12,3 +12,16 @@ indicia_api.samples:
     _auth: ['oauth2']
     no_cache: TRUE
 
+indicia_api.reports:
+  path: '/api/v2/reports'
+  defaults:
+    _controller: '\Drupal\indicia_api\ReportController::parse'
+    _title: 'Report'
+  methods: [OPTIONS, GET]
+  requirements:
+    _permission: 'access content'
+    _access: 'TRUE'
+    _format: 'json'
+  options:
+    _auth: ['oauth2']
+    no_cache: TRUE

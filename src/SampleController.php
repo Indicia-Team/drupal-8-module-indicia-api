@@ -6,63 +6,9 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Logger\RfcLogLevel;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-
 const INDICIA_ID_FIELD = 'field_indicia_user_id';
 
 iform_load_helpers(['data_entry_helper']);
-
-/**
- * Logs messages if in log mode.
- *
- * Messages go to the PHP error log and the Drupal error log.
- */
-function indicia_api_log($message, $severity = RfcLogLevel::NOTICE)
-{
-  \Drupal::logger('indicia_api')->log($severity, $message);
-}
-
-/**
- * Prints to log and returns a json formatted error back to the client.
- *
- * @param int $code
- *   Status code of the header.
- * @param string $status
- *   Status of the header.
- * @param string $title
- *   Title of the error.
- * @param null $errors
- *   If multiple errors then it can be passed as an array.
- */
-
-function error_print($code, $status, $title, $errors = null)
-{
-  $headers = [
-    'Status' => $code . ' ' . $status,
-    'Access-Control-Allow-Origin' => '*',
-    'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
-    'Access-Control-Allow-Headers' => 'authorization, x-api-key',
-  ];
-  if (is_null($errors)) {
-    $data = [
-      'errors' => [
-        [
-          'status' => (string) $code,
-          'title' => $title,
-        ],
-      ],
-    ];
-
-    indicia_api_log($title, RfcLogLevel::ERROR);
-  } else {
-    indicia_api_log('Errors', RfcLogLevel::ERROR);
-    indicia_api_log(print_r($errors, 1), RfcLogLevel::ERROR);
-
-    $data = [
-      'errors' => $errors,
-    ];
-  }
-  return new JsonResponse($data, $code, $headers);
-}
 
 /**
  * Samples POST request handler.
@@ -665,11 +611,11 @@ function forward_post_to(
   }
 
   $user = \Drupal::entityTypeManager()
-        ->getStorage('user')
-        ->load(drupal_static('user')->id());
+    ->getStorage('user')
+    ->load(drupal_static('user')->id());
 
   $userWarehouseId = $user->get(INDICIA_ID_FIELD)->value;
-  
+
   indicia_api_log('indicia_user_id ' . $userWarehouseId);
 
   $postargs .= '&user_id=' . $user->get(INDICIA_ID_FIELD)->value;
@@ -799,7 +745,7 @@ function prepare_media_for_upload($files = [])
 /**
  * The Samples controller.
  */
-class SamplesController extends ControllerBase
+class SampleController extends ControllerBase
 {
   /**
    * {@inheritdoc}

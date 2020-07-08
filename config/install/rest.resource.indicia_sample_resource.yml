@@ -1,8 +1,0 @@
-id: indicia_sample_resource
-granularity: method
-configuration:
-  POST:
-    supported_formats:
-      - json
-    supported_auth:
-      - basic_auth
