@@ -136,7 +136,18 @@ class ReportController extends ControllerBase
       case 'GET':
         \Drupal::logger('indicia_api')->notice('[Reports get]');
 
-        return fetch_report($request, $this->currentUser());
+        $user = $this->currentUser();
+
+        $user_authenticated = $user->isAuthenticated();
+        if (!$user_authenticated) {
+          return error_print(
+            400,
+            'Bad Request',
+            "Could not find/authenticate user."
+          );
+        }
+
+        return fetch_report($request, $user);
 
       case 'OPTIONS':
         break;
