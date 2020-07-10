@@ -236,17 +236,22 @@ function process_media_parameters($data, $occurrence = true)
   ];
 
   // Generate new name.
-  $file = $_FILES[$data['name']];
-  $ext = $file['type'] === 'image/png' ? '.png' : '.jpg';
+  // $_Files object is lost during oauth2 authentication so we need to use global
+  // https://www.drupal.org/project/simple_oauth/issues/2934486
+  $files = \Drupal::request()->files->all();
+  $originalFile = $files[$data['name']];
+
+  $ext = $originalFile->getClientMimeType() === 'image/png' ? '.png' : '.jpg';
   $newName = bin2hex(openssl_random_pseudo_bytes(20)) . $ext;
 
-  $file['name'] = $newName;
+  $file = ["originalFile" => $originalFile, 'name' => $newName];
 
   $model['fields']['path'] = ['value' => $newName];
 
   indicia_api_log('Processed media parameters.');
   indicia_api_log(print_r($data, 1));
   indicia_api_log(print_r($model, 1));
+  
   return ['model' => $model, 'file' => $file];
 }
 
@@ -723,7 +728,7 @@ function prepare_media_for_upload($files = [])
     $destination = $file['name'];
     $uploadPath = \data_entry_helper::getInterimImageFolder('fullpath');
 
-    if (move_uploaded_file($file['tmp_name'], $uploadPath . $destination)) {
+    if ($file['originalFile']->move($uploadPath, $destination)) {
       $r[] = [
         // Id is set only when saving over an existing record.
         // This will always be a new record.
