@@ -2,7 +2,6 @@
 
 use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
 use Drupal\Core\Logger\RfcLogLevel;
-use Drupal\user\UserInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 const INDICIA_ID_FIELD = 'field_indicia_user_id';
@@ -173,8 +172,12 @@ function indicia_api_get_user_id(
   return -1;
 }
 
-function indicia_api_user_insert(\Drupal\user\UserInterface $user)
+function indicia_api_set_user_id($user)
 {
+  if (!empty($user->get(INDICIA_ID_FIELD)->value)) {
+    return;
+  }
+
   $email = $user->get('mail')->value;
 
   $firstname = null;
@@ -183,7 +186,7 @@ function indicia_api_user_insert(\Drupal\user\UserInterface $user)
   if ($user->hasField('field_full_name')) {
     $names = explode(" ", $user->get('field_full_name')->value);
     $secondname = array_pop($names);
-    
+
     if (count($names)) {
       $firstname = join(" ", $names);
     }
@@ -207,4 +210,18 @@ function indicia_api_user_insert(\Drupal\user\UserInterface $user)
   }
 
   $user->set(INDICIA_ID_FIELD, $indicia_user_id);
+}
+
+function indicia_api_user_insert($user)
+{
+  indicia_api_set_user_id($user);
+}
+
+/**
+ * Keep user mail = name
+ */
+function indicia_api_user_presave($user)
+{
+  // $user->set('name', $user->mail->value);
+  indicia_api_set_user_id($user);
 }
