@@ -76,7 +76,7 @@ function indicia_api_simple_oauth_private_claims_alter(
   $data['email_verified'] = !$user->isBlocked();
 
   // attach custom user entity fields
-  $data['https://indicia/user/id'] = $user->get(INDICIA_ID_FIELD)->value;
+  $data['http://indicia.org.uk/user:id'] = $user->get(INDICIA_ID_FIELD)->value;
 
   if ($user->hasField('field_full_name')) {
     $data['field_full_name'] = $user->get('field_full_name')->value;
