@@ -1,65 +1,11 @@
 <?php
 
 use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
-use Drupal\Core\Logger\RfcLogLevel;
-use Symfony\Component\HttpFoundation\JsonResponse;
 
 const INDICIA_ID_FIELD = 'field_indicia_user_id';
 
 iform_load_helpers(['data_entry_helper']);
 
-/**
- * Logs messages if in log mode.
- *
- * Messages go to the PHP error log and the Drupal error log.
- */
-function indicia_api_log($message, $severity = RfcLogLevel::NOTICE)
-{
-  \Drupal::logger('indicia_api')->log($severity, $message);
-}
-
-/**
- * Prints to log and returns a json formatted error back to the client.
- *
- * @param int $code
- *   Status code of the header.
- * @param string $status
- *   Status of the header.
- * @param string $title
- *   Title of the error.
- * @param null $errors
- *   If multiple errors then it can be passed as an array.
- */
-
-function error_print($code, $status, $title, $errors = null)
-{
-  $headers = [
-    'Status' => $code . ' ' . $status,
-    'Access-Control-Allow-Origin' => '*',
-    'Access-Control-Allow-Methods' => 'GET,PUT,OPTIONS',
-    'Access-Control-Allow-Headers' => 'authorization, x-api-key',
-  ];
-  if (is_null($errors)) {
-    $data = [
-      'errors' => [
-        [
-          'status' => (string) $code,
-          'title' => $title,
-        ],
-      ],
-    ];
-
-    indicia_api_log($title, RfcLogLevel::ERROR);
-  } else {
-    indicia_api_log('Errors', RfcLogLevel::ERROR);
-    indicia_api_log(print_r($errors, 1), RfcLogLevel::ERROR);
-
-    $data = [
-      'errors' => $errors,
-    ];
-  }
-  return new JsonResponse($data, $code, $headers);
-}
 
 function indicia_api_simple_oauth_private_claims_alter(
   array &$data,
@@ -96,17 +42,6 @@ function indicia_api_simple_oauth_private_claims_alter(
  *
  * This calls the index.php/services/user_identifier/get_user_id service to
  * return an indicia id which can be associated with the user account.
- *
- * @param string $email
- *   The user's email.
-
- * @param string $secondname
- *   The user's surname.
- * @param int $cms_id
- *   The Drupal user id. Not needed when creating new users.
- *
- * @return int
- *   The indicia user id if successful else -1 or and error message.
  */
 function indicia_api_get_user_id(
   $email,
@@ -147,8 +82,6 @@ function indicia_api_get_user_id(
     $postargs['force'] = 'split';
     $postargs['nonce'] = $nonce;
 
-    indicia_api_log(print_r($postargs, 1));
-
     // Request the user id.
     $get_id_results = \data_entry_helper::http_post(
       \data_entry_helper::$base_url .
@@ -156,17 +89,16 @@ function indicia_api_get_user_id(
       $postargs,
       false
     );
-    indicia_api_log(print_r($get_id_results, 1));
 
     $result = json_decode($get_id_results['output']);
     if (!isset($result->error)) {
       return intval($result->userId);
     } else {
-      indicia_api_log('Error in indicia_api_get_user_id:' . $result->error);
+      \Drupal::logger('indicia_api')->error('Error in indicia_api_get_user_id:' . $result->error);
       return $result->error;
     }
   } else {
-    indicia_api_log('indicia_api_get_user_id:Unable to retreive nonce');
+    \Drupal::logger('indicia_api')->error('indicia_api_get_user_id:Unable to retreive nonce');
   }
 
   return -1;
@@ -217,11 +149,7 @@ function indicia_api_user_insert($user)
   indicia_api_set_user_id($user);
 }
 
-/**
- * Keep user mail = name
- */
 function indicia_api_user_presave($user)
 {
-  // $user->set('name', $user->mail->value);
   indicia_api_set_user_id($user);
 }

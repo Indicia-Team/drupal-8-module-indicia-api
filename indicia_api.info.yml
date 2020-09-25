@@ -1,5 +1,5 @@
 name: Indicia API v2
-description: A module which allows to connect to Indicia's warehouse API.
+description: A module which allows to connect to Indicia's warehouse API using JWT authentication.
 package: Indicia
 type: module
 core: 8.x
