@@ -692,7 +692,7 @@ function prepare_media_for_upload($files = []) {
       }
       data_entry_helper::$validation_errors[$key] = lang::get('file too big for webserver');
     }
-    elseif (!data_entry_helper::check_upload_size($file)) {
+    elseif (!data_entry_helper::checkUploadSize($file)) {
       // Warehouse may still block it.
       if (data_entry_helper::$validation_errors==NULL) data_entry_helper::$validation_errors = array();
       data_entry_helper::$validation_errors[$key] = lang::get('file too big for warehouse');
