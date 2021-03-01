@@ -3,6 +3,7 @@
 namespace Drupal\indicia_api\api\User;
 
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\user\Entity\User;
 
 require 'get.php';
 require 'update_.php';
@@ -77,7 +78,7 @@ class UserController extends ControllerBase {
     // UID.
     if (is_numeric($user)) {
       indicia_api_log('Loading user by uid: ' . $user . '.');
-      $user = user_load($user);
+      $user = User::load($user);
     }
     // Email.
     elseif (filter_var($user, FILTER_VALIDATE_EMAIL)) {

@@ -1,7 +1,9 @@
 <?php
 
 use Drupal\Core\Logger\RfcLogLevel;
+use Drupal\user\Entity\User;
 use Symfony\Component\HttpFoundation\JsonResponse;
+
 
 /**
  * Samples POST request handler.
@@ -365,7 +367,7 @@ function authorise_anonymous() {
   $key = $_SERVER['HTTP_X_API_KEY'];
 
   // Check if matches API anonymous account.
-  $result = db_query(
+  $result = \Drupal::database()->query(
     "SELECT * FROM {indicia_api} WHERE api_key = :key",
     array(':key' => $key));
 
@@ -390,7 +392,7 @@ function authorise_anonymous() {
   }
 
   // Find user.
-  $existing_user = user_load($anonymous_user_id);
+  $existing_user = User::load($anonymous_user_id);
 
   if (empty($existing_user)) {
     indicia_api_log('Not found anonymous user with ID ' . $anonymous_user_id . '.',

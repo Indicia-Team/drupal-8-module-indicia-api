@@ -66,7 +66,7 @@ function validate_users_create_request() {
 
   // Check email is valid.
   $email = $data['email'];
-  if (empty($email) || valid_email_address($email) != 1) {
+  if (empty($email) || !\Drupal::service('email.validator')->isValid($email)) {
     return array(
       'code' => 400,
       'header' => 'Bad Request',
@@ -145,12 +145,12 @@ function send_activation_email($new_user) {
 
   $mailManager = \Drupal::service('plugin.manager.mail');
   $result = $mailManager->mail(
-    'indicia_api', 
-    'register', 
-    $new_user->getEmail(), 
-    $new_user->getPreferredLangcode(), 
-    $params, 
-    NULL, 
+    'indicia_api',
+    'register',
+    $new_user->getEmail(),
+    $new_user->getPreferredLangcode(),
+    $params,
+    NULL,
     true
   );
 

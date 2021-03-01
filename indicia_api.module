@@ -74,14 +74,15 @@ function indicia_api_user_has_permission($key = NULL) {
  * Implements hook_load().
  */
 function indicia_api_key_load($id = NULL) {
+  $db = \Drupal::database();
   if ($id) {
     // Get specific key account.
-    $results = db_query("SELECT * FROM {indicia_api}
+    $results = $db->query("SELECT * FROM {indicia_api}
       WHERE id = :id ORDER BY title", array(':id' => $id));
   }
   else {
     // All accounts.
-    $results = db_query("SELECT * FROM {indicia_api} ORDER BY title");
+    $results = $db->query("SELECT * FROM {indicia_api} ORDER BY title");
   }
 
   // Transform an array of keys.
@@ -109,7 +110,7 @@ function indicia_api_authorise_key() {
 
   $key = $_SERVER['HTTP_X_API_KEY'];
 
-  $result = db_query(
+  $result = \Drupal::database()->query(
     "SELECT * FROM {indicia_api} WHERE api_key = :key",
     array(':key' => $key));
 
@@ -342,7 +343,7 @@ function indicia_api_log($message, $severity = RfcLogLevel::NOTICE) {
 
   $key = $_SERVER['HTTP_X_API_KEY'];
 
-  $result = db_query("SELECT * FROM {indicia_api} WHERE api_key = :key",
+  $result = \Drupal::database()->query("SELECT * FROM {indicia_api} WHERE api_key = :key",
     array(':key' => $key));
   $result_array = $result->fetchAll();
   $log_mode = $result_array[0]->log;
