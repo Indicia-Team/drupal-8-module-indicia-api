@@ -2,7 +2,9 @@
 
 use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
 
-const INDICIA_ID_FIELD = 'field_indicia_user_id';
+if (!defined('INDICIA_ID_FIELD')){
+  define('INDICIA_ID_FIELD', 'field_indicia_user_id');
+}
 
 iform_load_helpers(['data_entry_helper']);
 
