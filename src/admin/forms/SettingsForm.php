@@ -211,7 +211,7 @@ class SettingsForm extends FormBase {
     $message = 'Key saved';
 
     // Inform user and return to dashboard.
-    drupal_set_message(t($message, array('%key' => $title)));
+	\Drupal::messenger()->addMessage($this->t($message, array('%key' => $title)));
     $form_values['redirect'] = CONFIG_PATH;
   }
 
