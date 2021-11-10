@@ -65,7 +65,7 @@ function user_details($user, $fullDetails = FALSE) {
 
 
   if (ownAuthenticated($user) || $fullDetails) {
-    $data['name'] = $user->getUsername();
+    $data['name'] = $user->getDisplayName();
     $data['email'] = $user->getEmail();
     $data['warehouse_id'] = (int) $user->get(INDICIA_ID_FIELD)->value;
   }
