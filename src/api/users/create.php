@@ -174,7 +174,7 @@ function user_details_after_create($user_full, $fullDetails = FALSE) {
   ];
 
   if (ownAuthenticated($user_full) || $fullDetails) {
-    $data['name'] = $user_full->getDisplayName()();
+    $data['name'] = $user_full->getAccountName();
     $data['email'] = $user_full->getEmail();
     $data['warehouse_id'] = (int) $user_full->get(INDICIA_ID_FIELD)->value;
   }

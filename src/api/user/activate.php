@@ -1,19 +1,20 @@
 <?php
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Drupal\core\Url;
+
 
 function user_activate($user) {
   $valid = validate_user_activate_request($user);
+  $url = \Drupal\Core\Url::fromRoute('<front>', [], ['absolute' => 'true']);
   if (!$valid) {
-    return new RedirectResponse(Url::fromRoute('<front>'));
+    return new RedirectResponse($url->toString());
   }
 
   $user->set(ACTIVATION_FIELD, NULL);
   $user->activate();
   $user->save();
 
-  return new RedirectResponse(Url::fromRoute('<front>'));
+  return new RedirectResponse($url->toString());
 }
 
 // No need to check API KEY because it is email authenticated.
