@@ -50,3 +50,11 @@ indicia_api.reports:
   requirements:
     _permission: 'access content'
   methods: [OPTIONS, GET]
+indicia_api.advanced_reports:
+  path: '/api/v1/advanced_reports/{report}'
+  defaults:
+    _controller: '\Drupal\indicia_api\api\AdvancedReports\AdvancedReportController::buildReport'
+    _title: 'Advanced reports'
+  requirements:
+    _permission: 'access content'
+  methods: [OPTIONS, GET]
