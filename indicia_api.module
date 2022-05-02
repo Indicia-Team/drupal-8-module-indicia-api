@@ -20,6 +20,9 @@ function indicia_api_simple_oauth_private_claims_alter(
   global $base_url;
 
   $data['iss'] = $base_url;
+
+  if (!isset($user)) return;
+
   $data['email'] = $user->get('mail')->value;
   $data['email_verified'] = !$user->isBlocked();
 
