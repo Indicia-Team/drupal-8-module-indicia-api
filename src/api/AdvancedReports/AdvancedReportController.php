@@ -177,15 +177,16 @@ class AdvancedReportController extends ControllerBase {
    *   field names.
    */
   private function getFilters($report) {
+    $filters = [];
     if (!empty($_GET['survey_id'])) {
-      $filters = ['metadata.survey.id' => $_GET['survey_id']];
+      $filters['metadata.survey.id'] = $_GET['survey_id'];
     }
     elseif (!empty($_GET['group_id'])) {
-      $filters = ['metadata.group.id' => $_GET['group_id']];
+      $filters['metadata.group.id'] = $_GET['group_id'];
     }
     // Optional taxon group filter.
     if (!empty($_GET['taxon_group_id'])) {
-      $filters = ['taxon.group_id' => $_GET['taxon_group_id']];
+      $filters['taxon.group_id'] = $_GET['taxon_group_id'];
     }
     // Some end-points can return data for any chosen year.
     if (!empty($_GET['year']) && $report !== 'user-stats') {
