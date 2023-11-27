@@ -3,7 +3,7 @@ description: A module which allows to connect to Indicia's warehouse API using J
 package: Indicia
 type: module
 core: 8.x
-core_version_requirement: ^8 || ^9
+core_version_requirement: ^8 || ^9 || ^10
 dependencies:
   - iform
   - simple_oauth
