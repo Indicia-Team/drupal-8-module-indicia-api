@@ -485,7 +485,7 @@ JSON;
     $cacheKey = array_merge([
       'report' => 'RecorderMetricsSpeciesList',
     ], $this->esQueryCacheOpts);
-    $taxaResponse = helper_base::cache_get($cacheKey);
+    $taxaResponse = helper_base::cacheGet($cacheKey);
     if ($taxaResponse === FALSE) {
       // Get a list of all taxa recorded in project, ordered by document count.
       $request = <<<JSON
@@ -503,7 +503,7 @@ JSON;
         }
  JSON;
       $taxaResponse = $this->getEsResponse($request);
-      helper_base::cache_set($cacheKey, json_encode($taxaResponse));
+      helper_base::cacheSet($cacheKey, json_encode($taxaResponse));
     }
     else {
       $taxaResponse = json_decode($taxaResponse);
