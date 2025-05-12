@@ -6,9 +6,6 @@ if (!defined('INDICIA_ID_FIELD')){
   define('INDICIA_ID_FIELD', 'field_indicia_user_id');
 }
 
-iform_load_helpers(['data_entry_helper']);
-
-
 function indicia_api_simple_oauth_private_claims_alter(
   array &$data,
   AccessTokenEntityInterface $token
@@ -35,7 +32,7 @@ function indicia_api_simple_oauth_private_claims_alter(
     if ($user->hasField('field_first_name')) {
       $data['field_first_name'] = $user->get('field_first_name')->value;
     }
-    
+
     if ($user->hasField('field_last_name')) {
       $data['field_last_name'] = $user->get('field_last_name')->value;
     }
@@ -131,7 +128,7 @@ function indicia_api_set_user_id($user)
     if ($user->hasField('field_first_name')) {
       $firstname = $user->get('field_first_name')->value;
     }
-  
+
     if ($user->hasField('field_last_name')) {
       $secondname = $user->get('field_last_name')->value;
     }
@@ -149,12 +146,22 @@ function indicia_api_set_user_id($user)
   $user->set(INDICIA_ID_FIELD, $indicia_user_id);
 }
 
-function indicia_api_user_insert($user)
-{
+/**
+ * Implements hook_user_insert().
+ *
+ * {@inheritDoc}
+ */
+function indicia_api_user_insert($user) {
+  iform_load_helpers(['data_entry_helper']);
   indicia_api_set_user_id($user);
 }
 
-function indicia_api_user_presave($user)
-{
+/**
+ * Implements hook_user_presave().
+ *
+ * {@inheritDoc}
+ */
+function indicia_api_user_presave($user) {
+  iform_load_helpers(['data_entry_helper']);
   indicia_api_set_user_id($user);
 }
