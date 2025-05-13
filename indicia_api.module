@@ -58,8 +58,8 @@ function indicia_api_get_user_id(
   $postargs['website_id'] = $connection['website_id'];
 
   // Obtain nonce.
-  $curl_check = \data_entry_helper::http_post(
-    \data_entry_helper::$base_url . 'index.php/services/security/get_nonce',
+  $curl_check = \helper_base::http_post(
+    \helper_base::$base_url . 'index.php/services/security/get_nonce',
     $postargs
   );
 
@@ -85,8 +85,8 @@ function indicia_api_get_user_id(
     $postargs['nonce'] = $nonce;
 
     // Request the user id.
-    $get_id_results = \data_entry_helper::http_post(
-      \data_entry_helper::$base_url .
+    $get_id_results = \helper_base::http_post(
+      \helper_base::$base_url .
         'index.php/services/user_identifier/get_user_id',
       $postargs,
       false
@@ -152,7 +152,7 @@ function indicia_api_set_user_id($user)
  * {@inheritDoc}
  */
 function indicia_api_user_insert($user) {
-  iform_load_helpers(['data_entry_helper']);
+  iform_load_helpers(['helper_base']);
   indicia_api_set_user_id($user);
 }
 
@@ -162,6 +162,6 @@ function indicia_api_user_insert($user) {
  * {@inheritDoc}
  */
 function indicia_api_user_presave($user) {
-  iform_load_helpers(['data_entry_helper']);
+  iform_load_helpers(['helper_base']);
   indicia_api_set_user_id($user);
 }
