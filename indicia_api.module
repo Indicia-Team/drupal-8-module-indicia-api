@@ -2,10 +2,15 @@
 
 use League\OAuth2\Server\Entities\AccessTokenEntityInterface;
 
-if (!defined('INDICIA_ID_FIELD')){
+if (!defined('INDICIA_ID_FIELD')) {
   define('INDICIA_ID_FIELD', 'field_indicia_user_id');
 }
 
+/**
+ * Implements hook_simple_oauth_private_claims_alter().
+ *
+ * Adds custom user claims to the OAuth access token.
+ */
 function indicia_api_simple_oauth_private_claims_alter(
   array &$data,
   AccessTokenEntityInterface $token
@@ -18,17 +23,20 @@ function indicia_api_simple_oauth_private_claims_alter(
 
   $data['iss'] = $base_url;
 
-  if (!isset($user)) return;
+  if (!isset($user)) {
+    return;
+  }
 
   $data['email'] = $user->get('mail')->value;
   $data['email_verified'] = !$user->isBlocked();
 
-  // attach custom user entity fields
+  // Attach custom user entity fields.
   $data['http://indicia.org.uk/user:id'] = $user->get(INDICIA_ID_FIELD)->value;
 
   if ($user->hasField('field_full_name')) {
     $data['field_full_name'] = $user->get('field_full_name')->value;
-  } else {
+  }
+  else {
     if ($user->hasField('field_first_name')) {
       $data['field_first_name'] = $user->get('field_first_name')->value;
     }
@@ -49,10 +57,10 @@ function indicia_api_get_user_id(
   $email,
   $firstname,
   $secondname,
-  $cms_id = null
+  $cms_id = NULL
 ) {
   // Get connection/indicia website details.
-  $connection = iform_get_connection_details(null);
+  $connection = iform_get_connection_details(NULL);
 
   $postargs = [];
   $postargs['website_id'] = $connection['website_id'];
@@ -89,42 +97,47 @@ function indicia_api_get_user_id(
       \helper_base::$base_url .
         'index.php/services/user_identifier/get_user_id',
       $postargs,
-      false
+      FALSE
     );
 
     $result = json_decode($get_id_results['output']);
     if (!isset($result->error)) {
       return intval($result->userId);
-    } else {
+    }
+    else {
       \Drupal::logger('indicia_api')->error('Error in indicia_api_get_user_id:' . $result->error);
       return $result->error;
     }
-  } else {
-    \Drupal::logger('indicia_api')->error('indicia_api_get_user_id:Unable to retreive nonce');
+  }
+  else {
+    \Drupal::logger('indicia_api')->error('indicia_api_get_user_id:Unable to retrieve nonce');
   }
 
   return -1;
 }
 
-function indicia_api_set_user_id($user)
-{
+/**
+ * Ensure the user has an Indicia user ID in their profile.
+ */
+function indicia_api_set_user_id($user) {
   if (!empty($user->get(INDICIA_ID_FIELD)->value)) {
     return;
   }
 
   $email = $user->get('mail')->value;
 
-  $firstname = null;
-  $secondname = null;
+  $firstname = NULL;
+  $secondname = NULL;
 
   if ($user->hasField('field_full_name')) {
     $names = explode(" ", $user->get('field_full_name')->value);
     $secondname = array_pop($names);
 
     if (count($names)) {
-      $firstname = join(" ", $names);
+      $firstname = implode(" ", $names);
     }
-  } else {
+  }
+  else {
     if ($user->hasField('field_first_name')) {
       $firstname = $user->get('field_first_name')->value;
     }
@@ -134,13 +147,19 @@ function indicia_api_set_user_id($user)
     }
   }
 
+  if (empty($secondname)) {
+    // Can't fetch an Indicia user ID without a surname.
+    return;
+  }
+
   // Look up indicia id. No need to send cms_id as this is a new user so they
   // cannot have any old records under this id to merge.
   $indicia_user_id = indicia_api_get_user_id($email, $firstname, $secondname);
 
   // Handle indicia_api_get_user_id returning an error.
   if (!is_int($indicia_user_id)) {
-    /* todo. */
+    \Drupal::logger('indicia_api')->error('Response from indicia_api_get_user_id: ' . print_r($indicia_user_id, TRUE));
+    return;
   }
 
   $user->set(INDICIA_ID_FIELD, $indicia_user_id);
