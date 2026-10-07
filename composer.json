@@ -1,0 +1,6 @@
+{
+    "name": "drupal/indicia_api",
+    "description": "Indicia API module to connect to warehouse REST API using JWT authentication.",
+    "type": "drupal-custom-module",
+	"require": {}
+}
